@@ -28,6 +28,7 @@ def create_navbar():
                     dbc.DropdownMenuItem("Heatmap", href='/heatmap'),
                     dbc.DropdownMenuItem("Summary", href='/summary'),
                     dbc.DropdownMenuItem("Drilldown", href='/drilldown'),
+                    dbc.DropdownMenuItem("One Pager", href='/onepager'),
                 ],
             ),
         ],
