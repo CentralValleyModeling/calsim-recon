@@ -1,3 +1,5 @@
+# CalSim Results Console (ReCon)
+
 # Running the application
 In the project directory:  
   
