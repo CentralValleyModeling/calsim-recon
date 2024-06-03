@@ -3,6 +3,8 @@
 import logging
 import pandas as pd
 import pandss as pdss
+import numpy as np
+import matplotlib.pyplot as plt 
 
 # Inputting file
 logging.basicConfig(level=logging.INFO)
@@ -90,6 +92,9 @@ def table_a_from_csv(df: pd.DataFrame, path_string_swp: str, start_date: pd.Time
 
     # Filter out any data that is not within the range indicated by the mask
     df = df.loc[mask]
+    
+    # We don't know the unit so just assuming that the conversion is needed
+    df = cfs_to_taf(df, col="VALUE")
 
     # Rename the column containing the data to VALUE
     #df = df.rename(columns={path_string_swp : 'VALUE'})
