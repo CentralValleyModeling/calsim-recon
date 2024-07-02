@@ -91,6 +91,3 @@ class csrsData:
         # Save the dataframe into the given csv file
         df.to_csv(csv_filename, float_format='%.2f')
 
-
-c1 = csrsData(['Adjusted Historical (Danube)', 'CC LOC 50% (Danube)'])
-c1.csrs_to_csv("az_onepager_4.csv", "dvars.yaml")
