@@ -239,3 +239,7 @@ df_sv["SJR4"] = df_sv["N_MEL"] + df_sv["DPR_I"] + df_sv["LK_MC"] + df_sv["MILLE"
 df_sv["8RI"] = df_sv["SAC4"] + df_sv["SJR4"]
 
 df_sv["WYT_SAC_"] = df_dv_orig["WYT_SAC_"]
+
+# Name indexes
+df_dv.index.name = "Date"
+df_sv.index.name = "Date"

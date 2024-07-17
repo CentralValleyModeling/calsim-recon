@@ -46,7 +46,6 @@ def layout(**kwargs):
             dcc.Markdown(
                 "# ![](/assets/cs3_icon_draft.png) CalSim 3 Variable Drilldown"
             ),
-            # dcc.Markdown("### A General dashboard for reviewing CalSim 3 Results"),
             dbc.Row(
                 [
                     dbc.Col(
@@ -69,8 +68,42 @@ def layout(**kwargs):
             ),
             html.Br(),
             html.Div(id="my-output"),
-            dcc.Markdown("**Timeseries**"),
-            dcc.Graph(id="timeseries-plot"),
+            dbc.Row(
+                [
+                    dcc.Markdown("**Timeseries**"),
+                    dcc.Graph(id="timeseries-plot"),
+                ]
+            ),
+            dbc.Row(
+                [
+                    dcc.Markdown("**Annual Timeseries**"),
+                    dbc.Col(
+                        [
+                            html.P(
+                                "Select Year Type for Annual Timeseries Plot",
+                                className="text-muted mt-1 m-0",
+                            ),
+                            dcc.Dropdown(
+                                options=["Calendar Year", "Water Year"],
+                                id="year-type-annual-timeseries",
+                                style={"width": "50%"},
+                                value="Water Year",
+                            ),
+                            html.P(
+                                "Select Aggregation Method for Annual Timeseries Plot",
+                                className="text-muted mt-1 m-0",
+                            ),
+                            dcc.Dropdown(
+                                options=["Mean", "Max", "Min", "Sum"],
+                                id="agg-annual-timeseries",
+                                style={"width": "50%"},
+                                value="Mean",
+                            ),
+                        ]
+                    ),
+                    dcc.Graph(id="annual-timeseries-plot"),
+                ]
+            ),
             dbc.Row(
                 [
                     dbc.Col(
@@ -137,22 +170,6 @@ def layout(**kwargs):
                     ),
                 ]
             ),
-            #        dcc.Markdown("#### Table Controls"),
-            #        dcc.Markdown("End-of-Month (for Reservoirs)"),
-            #
-            #        dcc.RadioItems(
-            #        options = month_list,
-            #        value = 'Sep',
-            #        inline=True, id = 'monthradio'
-            #        ),
-            #
-            #        dcc.Markdown("Flow Average Period"),
-            #        dcc.Checklist(
-            #            options = month_list, value = month_list, inline=True,
-            #            id = 'monthchecklist'
-            #        ),
-            #        html.Div(id='output-container-month-checklist'),
-            #
             dcc.RangeSlider(
                 1922,
                 2021,
@@ -163,40 +180,6 @@ def layout(**kwargs):
                 id="slider-yr-range",
             ),
             html.Div(id="output-container-range-slider"),
-            #
-            #        #html.Button('Load', id='btn-refresh-tbl', n_clicks=0),
-            #        dcc.Markdown("**Reservoir Summary Tables (Single Month)**"),
-            #        dash_table.DataTable(
-            #            id='sum_tbl_res',
-            #            columns=[{"name": i, "id": i}
-            #                    for i in df_tbl.columns],
-            #            data=df_tbl_res.to_dict(orient='records'),
-            #            style_header={
-            #                    'backgroundColor': 'rgb(200, 200, 200)',
-            #                    'fontWeight': 'bold'
-            #            },
-            #            style_cell={
-            #            'width': '{}%'.format(len(df_tbl.columns)),
-            #            'textOverflow': 'ellipsis',
-            #            'overflow': 'hidden'
-            #            },
-            #        ),
-            #        dcc.Markdown("**Flow Summary Tables (Average Annual)**"),
-            #        dash_table.DataTable(
-            #            id='sum_tbl',
-            #            columns=[{"name": i, "id": i}
-            #                    for i in df_tbl.columns],
-            #            data=df_tbl.to_dict(orient='records'),
-            #            style_header={
-            #                    'backgroundColor': 'rgb(200, 200, 200)',
-            #                    'fontWeight': 'bold'
-            #            },
-            #            style_cell={
-            #            'width': '{}%'.format(len(df_tbl.columns)),
-            #            'textOverflow': 'ellipsis',
-            #            'overflow': 'hidden'
-            #            },
-            #        )
         ],
         fluid=False,
     )
@@ -226,6 +209,45 @@ def update_timeseries(b_part):
     fig = px.line(
         df_dv,
         x=df_dv.index,
+        y=b_part,
+        color="Scenario",
+        color_discrete_sequence=PLOT_COLORS,
+    )
+    # print(df)
+    return fig
+
+
+# Annual Timeseries Plot
+@callback(
+    Output(component_id="annual-timeseries-plot", component_property="figure"),
+    Input(component_id="b-part", component_property="value"),
+    Input(component_id="year-type-annual-timeseries", component_property="value"),
+    Input(component_id="agg-annual-timeseries", component_property="value"),
+)
+def update_annual_timeseries(
+    b_part,
+    year_type: str = "Calendar Year",
+    agg_method: str = "Mean",
+):
+    offsets = {
+        "Calendar Year": 1,
+        "Water Year": 10,
+    }
+    df_agg = (
+        df_dv.loc[:, [b_part, "Scenario"]]
+        .groupby("Scenario")
+        .resample(rule=pd.offsets.YearBegin(month=offsets[year_type]))
+        .agg({b_part: [agg_method.lower(), "count"]})
+        .reset_index()
+    )
+    df_agg.columns = ["-".join(c).strip("- ") for c in df_agg.columns]
+    count = df_agg[f"{b_part}-count"]
+    df_agg[year_type] = df_agg["Date"]
+    df_agg[b_part] = df_agg[f"{b_part}-{agg_method.lower()}"]  # Clean name of agg
+    df_agg = df_agg.loc[count == 12, :]  # Filter to only show full years of data
+    fig = px.line(
+        df_agg,
+        x=year_type,
         y=b_part,
         color="Scenario",
         color_discrete_sequence=PLOT_COLORS,
@@ -367,18 +389,8 @@ def update_table2(slider_yr_range, monthradio):
     Output(component_id="output-container-range-slider", component_property="children"),
     Input(component_id="slider-yr-range", component_property="value"),
 )
-def update_table(value):
+def set_slider(value):
     return value[0], str("-"), value[1]
-
-
-# @callback(
-#    Output('container-button-basic', 'children'),
-#    Input('submit-val', 'n_clicks'),
-#    prevent_initial_call=True
-# )
-# def load(n_clicks):
-#    load_data_mult(scen_dict,var_dict,date_map)
-#    return
 
 
 @callback(
@@ -421,91 +433,3 @@ def display_updated_data(full_scen_table):
     for s in full_scen_table:
         if s["alias"].strip() != "":
             scen_dict[s["alias"]] = s["pathname"]
-    # print(scen_dict)
-    return  # str(full_scen_table)
-
-
-# @callback(
-#    Output('file-table', 'data'),
-#    [Input('upload-data', 'filename'),
-#     Input('clear-button', 'n_clicks')],
-#    [State('file-table', 'data')]
-# )
-# def update_or_clear_table(filenames, n_clicks_clear, existing_data):
-#    ctx = dash.callback_context
-#
-#    if not ctx.triggered:
-#        # No input has been triggered, do nothing
-#        return existing_data
-#
-#    triggered_id = ctx.triggered[0]['prop_id'].split('.')[0]
-#
-#    if triggered_id == 'upload-data':
-#        # Handling file uploads
-#        if filenames:
-#            if not isinstance(filenames, list):
-#                filenames = [filenames]  # Ensure filenames are in list form
-#            new_entries = [{'filename': filename, 'alias': ''} for filename in filenames if filename not in {row['filename'] for row in existing_data}]
-#            file_data.extend(new_entries)  # Add new entries to the global file_data
-#            return file_data
-#
-#    elif triggered_id == 'clear-button':
-#        # Handling clear button click
-#        file_data.clear()  # Clear the global file_data
-#        return []
-#
-#    return existing_data
-
-# @callback(
-#    Output('table-update-output','children'),
-#    Input('file-table','data')
-# )
-# def display_updated_data(updated_rows):
-#    if updated_rows is None:
-#        return "No data in the table."
-#    else:
-#        # You can process the data as needed, here we just print it
-#        return str(updated_rows)
-
-
-# def parse_contents(contents, filename, date):
-#    content_type, content_string = contents.split(',')
-#    decoded = base64.b64decode(content_string)
-#    try:
-#        if 'text' in content_type:
-#            # Assume that the user uploaded a text file
-#            return html.Div([
-#                html.H5(filename),
-#                html.P(f"Last modified: {str(date)}"),
-#                html.Pre(decoded.decode('utf-8'))
-#            ])
-#        elif 'image' in content_type:
-#            # Assume that the user uploaded an image
-#            return html.Div([
-#                html.H5(filename),
-#                html.P(f"Last modified: {str(date)}"),
-#                html.Img(src=contents)
-#            ])
-#        else:
-#            return html.Div([
-#                'Unsupported file type: {}'.format(content_type)
-#            ])
-#    except Exception as e:
-#        return html.Div([
-#            'There was an error processing this file.'
-#        ])
-
-
-# @callback(
-#    Output('output-data-upload', 'children'),
-#    Input('upload-data', 'contents'),
-#    State('upload-data', 'filename'),
-#    State('upload-data', 'last_modified')
-# )
-# def update_output(list_of_contents, list_of_names, list_of_dates):
-#    print(list_of_contents,list_of_names)
-#    #if list_of_contents is not None:
-#    #    children = [
-#    #        parse_contents(c, n, d) for c, n, d in zip(list_of_contents, list_of_names, list_of_dates)
-#    #    ]
-#    return #children

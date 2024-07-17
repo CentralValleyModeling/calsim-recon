@@ -145,8 +145,11 @@ def read_slider(value) -> tuple:
     Input(component_id="dropdown_common_pers_csum", component_property="value"),
 )
 def slider(dropdown_val):
-    startyr = int(dropdown_val.split("-")[0])
-    endyr = int(dropdown_val.split("-")[-1])
+    startyr, endyr = 1922, 2021
+    if isinstance(dropdown_val, str):
+        startyr = int(dropdown_val.split("-")[0])
+        endyr = int(dropdown_val.split("-")[-1])
+
     return startyr, endyr
 
 
