@@ -1,7 +1,7 @@
 from urllib.parse import urlencode
 
 import dash_bootstrap_components as dbc
-from dash import ALL, Input, Output, callback, callback_context, html, register_page
+from dash import ALL, Input, Output, callback, callback_context, html, register_page, dcc
 
 from charts.chart_layouts import CardWidget, card_bar_plot_cy, card_mon_exc_plot
 from pages.styles import GLOBAL_MARGIN
@@ -9,24 +9,22 @@ from utils.query_data import df_dv
 
 register_page(__name__, name="Home", top_nav=True, path="/")
 
-dcr_cover_path = "assets/draft_dcr_2023_cover.png"
+dcr_cover_path = "assets/final_dcr_2023_cover.png"
 
 title_text = (
-    """The California Department of Water Resources released the 
-              draft State Water Project Delivery Capability Report for 2023 
-              that presents a new and enhanced analysis of current and future 
-              expectations for the State Water Project water supply. The report 
-              is a key tool for water managers, including groundwater 
-              sustainability agencies, to help plan and manage future water 
-              supply and plan for climate resilience projects. The State Water 
-              Project is developing key adaptation strategies, like the Delta 
-              Conveyance Project and Forecast Informed Reservoir Operations, 
-              to ensure the water needs of California are met in the face of a 
-              changing climate and uncertainties in future regulations. If appropriate 
-              action is not taken to modernize the infrastructure and fund climate 
-              initiatives, the report signals substantial reduction in State Water 
-              Project delivery capability and reliability. Final report to be 
-              released this summer.""",
+    """Welcome to the Delivery Capability Report Results Console (ReCon), an 
+    interactive tool designed to complement the insights provided in the 2023 
+    Delivery Capability Report. ReCon allows you to explore and visualize key 
+    outputs of the DCR 2023 CalSim 3 models, providing a dynamic and engaging 
+    way to understand delivery performance and capabilities.""",
+    html.Br(),
+    html.Br(),
+    """The California Department of Water Resources released the Final State Water 
+    Project Delivery Capability Report for 2023 that presents a new and enhanced 
+    analysis of current and future expectations for the State Water Project water 
+    supply. The report is a key tool for water managers, including groundwater 
+    sustainability agencies, to help plan and manage future water supply and plan 
+    for climate resilience projects""",
     html.Br(),
     html.Br(),
     """Comments and questions can be emailed to CVMsupport@water.ca.gov""",
@@ -179,7 +177,34 @@ def layout():
                     dbc.Col(
                         class_name="col-md-6 my-1",
                         children=[
-                            html.A(title_text),
+                            # html.A(title_text),
+                            dcc.Markdown('''
+                                         This is the Delivery Capability Report **Re**sults 
+                                         **Con**sole (ReCon), an interactive tool designed to complement 
+                                         the insights provided in the Delivery Capability Report. 
+                                         ReCon allows users to explore and visualize key outputs 
+                                         of the DCR 2023 CalSim 3 models, providing a dynamic and 
+                                         engaging way to understand delivery performance and capabilities.'''
+                                         ),  
+                            dcc.Markdown('''
+                                         The Delivery Capability Report presents California Department of Water Resources (DWR) 
+                                         analysis of the State Water Project (SWP) system and provides important planning information 
+                                         for users of SWP water. The analysis provides information about how changing climate, regulatory, 
+                                         and operational considerations impact SWP delivery capability.
+                                         '''
+                                         ),
+                          
+                            dcc.Markdown('''
+                                        **The most salient findings of the DCR 2023 are:**  
+                                        * Under existing conditions, the estimated average annual delivery of Tabler A water for this report is 2,202 TAF/year, 119 less than the 2,321 TAF/year estimated for the 2021 Report.
+                                        * The likelihood of existing condition SWP Article 21 deliveries being greater than 20 TAF/year has increased by 4 percent relative to the likelihood presented in the 2021 Report.
+                                        * Under the climate change scenarios, the estimated average annual delivery of Table A water shown in the three scenarios is 13 percent to 22 percent lower than under existing conditions.
+                                         '''
+                                         ),
+                            dcc.Markdown('''
+                                        Comments and questions can be emailed to [CVMsupport@water.ca.gov](mailto:CVMsupport@water.ca.gov)
+                                         ''')
+
                         ],
                     ),
                     dbc.Col(
