@@ -4,32 +4,29 @@ import plotly.express as px
 import plotly.graph_objects as go
 from dash import dcc, html
 
+from data import CHART_REGISTRY
 from pages.styles import PLOT_COLORS
 from utils.query_data import scen_aliases, var_dict
-from utils.tools import (
-    cfs_taf,
-    common_pers,
-    convert_cm_nums,
-    convert_wyt_nums,
-    month_list,
-    monthfilter,
-    wyt_list,
-)
+from utils.tools import cfs_taf, convert_cm_nums, month_list, monthfilter
 
 
 # ToDo use dictionaries to allow arbitrary number of buttons
 class CardWidget:
     def __init__(
         self,
-        title,
-        button_id,
+        title: str,
+        button_id: str,
         button_label="Explore",
         button_id2="placeholder",
-        button_label2=None,
-        chart=None,
+        button_label2: str | None = None,
+        chart: html.Div = None,
         text=None,
         image=None,
+        element_id: str = None,
     ) -> None:
+        if element_id is None:
+            element_id = str(id(self))
+        self.id = element_id
         self.title = title
         self.button_id = button_id
         self.button_label = button_label
@@ -45,12 +42,23 @@ class CardWidget:
         wyt=[1, 2, 3, 4, 5],
         startyr=1922,
         endyr=2021,
+        register_download: str | None = None,
     ):
-
+        if register_download:
+            download_button = dbc.Button(
+                "Download Data",
+                id=register_download,
+                rel="noopener",
+                target="_blank",
+            )
+            CHART_REGISTRY[register_download] = lambda *_: self.chart
+        else:
+            download_button = None
         card = dbc.Card(
             class_name="m-2",
             children=[
-                dbc.CardImg(src=self.image, top=True),
+                html.A(id=self.id),
+                dbc.CardImg(src=self.image, top=True) if self.image else None,
                 dbc.CardBody(
                     [
                         html.H4(self.title, className="card-title"),
@@ -83,6 +91,7 @@ class CardWidget:
                                     if self.button_label2 is not None
                                     else None
                                 ),
+                                (download_button),
                             ],
                         ),
                     ]
@@ -153,7 +162,7 @@ def card_bar_plot_cy(
     try:
         df_dcr21 = cfs_taf(df_dcr21, var_dict)
     except Exception:
-        print("Unable to convert from CFS to TAF")
+        print(f"Unable to convert from CFS to TAF for {b_part}")
     df_dcr21_ann = round(df_dcr21.groupby(["Scenario"]).sum() / (2015 - 1922 + 1))
     df0 = df.loc[
         df["Scenario"].isin(
@@ -169,7 +178,7 @@ def card_bar_plot_cy(
     try:
         df0 = cfs_taf(df0, var_dict)
     except Exception:
-        print("Unable to convert from CFS to TAF")
+        print(f"Unable to convert from CFS to TAF for {b_part}")
     # For the last year
     df1 = round(df0.groupby(["Scenario"]).sum() / (endyr - startyr + 1))
     df_plot = pd.concat([df_dcr21_ann, df1])
@@ -260,11 +269,18 @@ def mon_exc_plot(df, b_part, monthchecklist):
     for i, column in enumerate(df3.columns):
         series_sorted = df3[column].dropna()
         exceedance_prob = (series_sorted.index + 1) / len(series_sorted) * 100
-
+        # linearly interpolate the line above so we get 100 points, from 1-100
+        df = pd.DataFrame(data={"y": series_sorted, "x": exceedance_prob})
+        integer_index = df["x"].round(decimals=0).astype(int)
+        # This step should really be an interpolation using scipy.interp1d, but it works
+        # with the dependencies that we have right now
+        # TODO: 2024-07-18 Consider updating to an interpolation method
+        df = df.groupby(integer_index).mean()
+        df = df.reindex(index=range(1, 101, 1)).ffill()
         fig.add_trace(
             go.Scatter(
-                x=exceedance_prob,
-                y=series_sorted,
+                x=df.index,
+                y=df["y"],
                 mode="lines",
                 name=column,
                 line=dict(color=PLOT_COLORS[i % len(PLOT_COLORS)]),
@@ -356,7 +372,7 @@ def ta_dry_wet_barplot(
 ):
     df1 = pd.DataFrame()
     df = cfs_taf(df, var_dict)
-    l = {"scenario": [], "period": [], "avg": [], "pct": [], "label": []}
+    left = {"scenario": [], "period": [], "avg": [], "pct": [], "label": []}
     l_df = pd.DataFrame()
     for s in scens:
         for c in common_pers:
@@ -366,12 +382,12 @@ def ta_dry_wet_barplot(
                 df1 = df.loc[df["Scenario"] == s, [bpart, "icy"]]
                 df2 = df1.loc[df1["icy"].between(startyr, endyr)]
                 v = round(df2[bpart].sum() / (endyr - startyr + 1), 0)
-                l["scenario"].append(s)
-                l["period"].append(c)
-                l["avg"].append(v)
-                l["pct"].append(round((v / ta_tot), 2))
-                l["label"].append(f"{round((v/ta_tot)*100)}%")
-    l_df = pd.DataFrame(l)
+                left["scenario"].append(s)
+                left["period"].append(c)
+                left["avg"].append(v)
+                left["pct"].append(round((v / ta_tot), 2))
+                left["label"].append(f"{round((v/ta_tot)*100)}%")
+    l_df = pd.DataFrame(left)
     # print(l_df)
     fig = px.bar(
         l_df,
@@ -411,7 +427,7 @@ def a21_dry_wet_barplot(
 ):
     df1 = pd.DataFrame()
     df = cfs_taf(df, var_dict)
-    l = {"scenario": [], "period": [], "avg": []}
+    left = {"scenario": [], "period": [], "avg": []}
     l_df = pd.DataFrame()
     for s in scens:
         for c in common_pers:
@@ -421,10 +437,10 @@ def a21_dry_wet_barplot(
                 df1 = df.loc[df["Scenario"] == s, [bpart, "icy"]]
                 df2 = df1.loc[df1["icy"].between(startyr, endyr)]
                 v = round(df2[bpart].sum() / (endyr - startyr + 1), 0)
-                l["scenario"].append(s)
-                l["period"].append(c)
-                l["avg"].append(v)
-    l_df = pd.DataFrame(l)
+                left["scenario"].append(s)
+                left["period"].append(c)
+                left["avg"].append(v)
+    l_df = pd.DataFrame(left)
     # print(l_df)
     fig = px.bar(
         l_df,

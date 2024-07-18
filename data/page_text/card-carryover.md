@@ -1,0 +1,1 @@
+Excluding Butte County,Yuba City, and Plumas County FCWCD. A water supply "savings account" for SWP water that is allocated to an SWP contractor in a given year, but not used by the end of the year. Carryover water is stored in the SWP's share of San Luis Reservoir, when space is available, for the contractor to use in the following year.
