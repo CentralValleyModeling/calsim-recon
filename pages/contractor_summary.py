@@ -1,19 +1,29 @@
 # import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
-import pandas as pd
-import plotly.express as px
-import yaml
-from dash import Dash, Input, Output, callback, dash_table, dcc, html, register_page
+from dash import (
+    Input,
+    Output,
+    State,
+    callback,
+    dash_table,
+    dcc,
+    html,
+    no_update,
+    register_page,
+)
 
 from charts.chart_layouts import ann_exc_plot
+from data import create_download_button, universal_data_download
+from data.downloads import CHART_REGISTRY
 from utils.query_data import df_dv, scen_aliases, var_dict
 from utils.tools import common_pers, make_summary_df, month_list
 
 register_page(
     __name__,
-    # name='Page 4',
+    name="Contractor Summary",
     top_nav=True,
     path="/contractor_summary",
+    order=5,
 )
 
 b = []
@@ -43,6 +53,8 @@ typefilter_dict = {
 
 opt = [{"label": k, "value": v} for k, v in common_pers.items()]
 
+DWNLD_BUTTON_ID = "contractor-specific-exceedance"
+
 
 def layout(**kwargs):
     global b
@@ -57,9 +69,12 @@ def layout(**kwargs):
     exp_tbl = make_summary_df(
         scen_aliases, df_dv, var_dict, bparts=b, start_yr=1922, end_yr=2021
     )
+    graph_div = dcc.Graph(id="contractor-exceedance-graph")
 
     layout = dbc.Container(
-        [
+        class_name="m-2",
+        children=[
+            dcc.Download(id="download-response-contractor"),
             # dcc.Markdown("# ![](/assets/cs3_icon_draft.png) CalSim 3 Summary Table"),
             dcc.RangeSlider(
                 1922,
@@ -89,21 +104,21 @@ def layout(**kwargs):
                         },
                         style_cell={
                             "width": "{}%".format(len(exp_tbl.columns)),
-                            #'width': '1000px',
                             "textOverflow": "ellipsis",
                             "overflow": "hidden",
                             "textAlign": "left",
                         },
                     ),
-                    dcc.Graph(id="dummy4"),
+                    graph_div,
+                    html.Div(
+                        className="m-3",
+                        children=create_download_button(DWNLD_BUTTON_ID, graph_div),
+                    ),
                 ]
             ),
-        ]
+        ],
     )
     return layout
-
-
-layout()
 
 
 # Update Summary Table
@@ -126,14 +141,8 @@ def update_table(slider_yr_range):
 
 # Write out the range slider selections
 @callback(
-    Output(
-        component_id="output-container-range-slider_2",
-        component_property="children",
-    ),
-    Input(
-        component_id="slider-yr-range",
-        component_property="value",
-    ),
+    Output("output-container-range-slider_2", "children"),
+    Input("slider-yr-range", "value"),
 )
 def read_slider(value) -> tuple:
     return str("Average Period: "), value[0], str("-"), value[1]
@@ -141,8 +150,8 @@ def read_slider(value) -> tuple:
 
 # Update range slider with common period selection
 @callback(
-    Output(component_id="slider-yr-range", component_property="value"),
-    Input(component_id="dropdown_common_pers_csum", component_property="value"),
+    Output("slider-yr-range", "value"),
+    Input("dropdown_common_pers_csum", "value"),
 )
 def slider(dropdown_val):
     startyr, endyr = 1922, 2021
@@ -155,17 +164,35 @@ def slider(dropdown_val):
 
 # Return plot for selected contractor
 @callback(
-    Output(component_id="dummy4", component_property="figure"),
+    Output("contractor-exceedance-graph", "figure"),
     Input("exp_tbl", "active_cell"),
     prevent_initial_call=True,
 )
-def show_contractor_data(clickData):
-    if clickData is None:
+def show_contractor_data(click_data):
+    if click_data is None:
         return "Click on a cell"
     else:
-        b = exp_tbl.loc[clickData["row"]]["bpart"]
-        # print(b)
+        b = exp_tbl.loc[click_data["row"]]["bpart"]
         fig = ann_exc_plot(
-            df_dv, b, monthchecklist=month_list, yearwindow="Calendar Year"
+            df_dv,
+            b,
+            monthchecklist=month_list,
+            yearwindow="Calendar Year",
         )
+        # We need to re-register the figure when it's updated
+        CHART_REGISTRY[DWNLD_BUTTON_ID] = lambda *_: fig
         return fig
+
+
+@callback(
+    output=Output("download-response-contractor", "data"),
+    inputs=[Input(DWNLD_BUTTON_ID, "n_clicks")],
+    state=[State("exp_tbl", "active_cell")],
+    prevent_initial_call=True,
+)
+def contractor_data_download(inputs, state):
+    if state is None:
+        return no_update
+    else:
+        b = exp_tbl.loc[state["row"]]["bpart"]
+    return universal_data_download(csv_name=f"exceedance-{b}.csv")

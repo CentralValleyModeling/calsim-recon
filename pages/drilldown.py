@@ -22,7 +22,13 @@ from utils.tools import (
     wyt_list,
 )
 
-register_page(__name__, name="Drilldown", top_nav=True, path="/drilldown")
+register_page(
+    __name__,
+    name="Drilldown",
+    top_nav=True,
+    path="/drilldown",
+    order=6,
+)
 
 bparts = []
 aliases = []
@@ -42,12 +48,11 @@ def layout(**kwargs):
     b = kwargs.get("type", "C_CAA003")
     print(b)
     layout = dbc.Container(
-        [
-            dcc.Markdown(
-                "# ![](/assets/cs3_icon_draft.png) CalSim 3 Variable Drilldown"
-            ),
+        class_name="m-2",
+        children=[
             dbc.Row(
                 [
+                    html.H3("Drilldown"),
                     dbc.Col(
                         [
                             "Select B-Part: ",

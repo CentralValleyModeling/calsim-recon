@@ -1,11 +1,17 @@
 import dash_bootstrap_components as dbc
-from dash import html, register_page
+from dash import Input, Output, callback, dcc, html, register_page
 
 from charts.chart_layouts import CardWidget, card_bar_plot_cy, card_mon_plot
-from pages.styles import GLOBAL_MARGIN
+from data import load_markdown, universal_data_download
 from utils.query_data import df_sv
 
-register_page(__name__, name="Hydrology", top_nav=True, path="/hydrology")
+register_page(
+    __name__,
+    name="Hydrology",
+    top_nav=True,
+    path="/hydrology",
+    order=1,
+)
 
 # Cards
 
@@ -46,7 +52,7 @@ eight_ri_card_mon = CardWidget(
     button_id=None,
     button_label=None,
     chart=card_mon_plot(df_sv, b_part="8RI", yaxis_title="Eight River Index (TAF)"),
-    text="Eight River Index is the sum of Sacramento River Runoff and San Joaquin River Runoff",
+    text=load_markdown("page_text/hydrology-8ri.md"),
 )
 
 sac_four_ri_card_mon = CardWidget(
@@ -56,9 +62,7 @@ sac_four_ri_card_mon = CardWidget(
     chart=card_mon_plot(
         df_sv, b_part="SAC4", yaxis_title="Sacramento River Runoff (TAF)"
     ),
-    text="""Sacramento River Runoff is the sum of Sacramento River at Bend Bridge, 
-                        Feather River inflow to Lake Oroville, Yuba River at Smartville, 
-                        and American River inflow to Folsom Lake.""",
+    text=load_markdown("page_text/hydrology-sacramento-4ri.md"),
 )
 
 sjr_four_ri_card_mon = CardWidget(
@@ -68,9 +72,7 @@ sjr_four_ri_card_mon = CardWidget(
     chart=card_mon_plot(
         df_sv, b_part="SJR4", yaxis_title="San Joaquin River Runoff (TAF)"
     ),
-    text="""San Joaquin River Runoff is the sum of Stanislaus River inflow to New Melones
-                        Lake, Tuolumne River inflow to New Don Pedro Reservoir, Merced River inflow
-                        to Lake McClure, and San Joaquin River inflow to Millerton Lake""",
+    text=load_markdown("page_text/hydrology-san-joaquin-4ri.md"),
 )
 
 orov_inflow_card_mon = CardWidget(
@@ -105,76 +107,87 @@ orov_inflow_card_wetter_mon = CardWidget(
     ),
     text="""Wet and Above Normal years (Sacramento Valley Index)""",
 )
-# Layout
 
 
 def layout():
-    layout = html.Div(
-        [
-            html.H2(["Hydrology Comparison"]),
-            # dcc.RangeSlider(1922, 2021, 1, value=[1922, 2021],
-            #        marks={i: '{}'.format(i) for i in range(1922,2021,5)},
-            #        pushable=False,
-            #        id='hydrology-range-slider'
-            # ),
-            # dcc.Checklist(options = wyt_list,
-            #        value = wyt_list,
-            #        inline=True,
-            #        id = 'wytchecklist-bar',
-            #        inputStyle={"margin-right": "5px","margin-left": "30px"},
-            # ),
-            # html.Div(id='hydrology-range-slider-output'),
-            dbc.Row(
+    layout = dbc.Container(
+        class_name="m-2",
+        children=[
+            dcc.Download(id="download-response-hydrology"),
+            dbc.Col(
                 [
-                    dbc.Col(
+                    html.H3(["Hydrology Comparison"]),
+                    dbc.Row(
                         [
-                            eight_ri_card_ann.create_card(height="25rem"),
+                            dbc.Col(eight_ri_card_ann.create_card(height="25rem")),
+                            dbc.Col(sac_four_ri_card_ann.create_card(height="25rem")),
                         ]
                     ),
-                    dbc.Col(
+                    dbc.Row(
                         [
-                            sac_four_ri_card_ann.create_card(height="25rem"),
+                            dbc.Col(sjr_four_ri_card_ann.create_card(height="25rem")),
+                            dbc.Col(orov_inflow_card_ann.create_card(height="25rem")),
                         ]
                     ),
-                ]
-            ),
-            dbc.Row(
-                [
-                    dbc.Col(
+                    dbc.Row(
                         [
-                            sjr_four_ri_card_ann.create_card(height="25rem"),
+                            dbc.Col(
+                                eight_ri_card_mon.create_card(
+                                    registry_id="monthly-8RI",
+                                )
+                            ),
+                            dbc.Col(
+                                sac_four_ri_card_mon.create_card(
+                                    registry_id="monthly-sacramento-4RI",
+                                )
+                            ),
                         ]
                     ),
-                    dbc.Col(
+                    dbc.Row(
                         [
-                            orov_inflow_card_ann.create_card(height="25rem"),
+                            dbc.Col(
+                                sjr_four_ri_card_mon.create_card(
+                                    registry_id="monthly-san-joaquin-4RI",
+                                )
+                            ),
+                            dbc.Col(
+                                orov_inflow_card_mon.create_card(
+                                    registry_id="monthly-oroville-inflow",
+                                )
+                            ),
                         ]
                     ),
-                ]
-            ),
-            html.Hr(),
-            eight_ri_card_mon.create_card(height="35rem"),
-            sac_four_ri_card_mon.create_card(height="35rem"),
-            sjr_four_ri_card_mon.create_card(height="35rem"),
-            orov_inflow_card_mon.create_card(height="35rem"),
-            dbc.Row(
-                [
-                    dbc.Col(
+                    dbc.Row(
                         [
-                            orov_inflow_card_drier_mon.create_card(height="35rem"),
+                            dbc.Col(
+                                orov_inflow_card_drier_mon.create_card(
+                                    registry_id="monthly-oroville-inflow-dry",
+                                )
+                            ),
+                            dbc.Col(
+                                orov_inflow_card_wetter_mon.create_card(
+                                    registry_id="monthly-oroville-inflow-wet",
+                                )
+                            ),
                         ]
                     ),
-                    dbc.Col(
-                        [
-                            orov_inflow_card_wetter_mon.create_card(height="35rem"),
-                        ]
-                    ),
-                ]
+                ],
             ),
         ],
-        style=GLOBAL_MARGIN,
     )
     return layout
 
 
 # Callbacks
+@callback(
+    Output("download-response-hydrology", "data"),
+    Input("monthly-8RI", "n_clicks"),
+    Input("monthly-sacramento-4RI", "n_clicks"),
+    Input("monthly-san-joaquin-4RI", "n_clicks"),
+    Input("monthly-oroville-inflow", "n_clicks"),
+    Input("monthly-oroville-inflow-dry", "n_clicks"),
+    Input("monthly-oroville-inflow-wet", "n_clicks"),
+    prevent_initial_call=True,
+)
+def home_data_download(*args):
+    return universal_data_download()

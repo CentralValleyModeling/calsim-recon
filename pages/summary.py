@@ -20,9 +20,10 @@ from utils.tools import (
 
 register_page(
     __name__,
-    # name='Page 4',
+    name="Summary Table",
     top_nav=True,
     path="/summary",
+    order=4,
 )
 
 
@@ -81,10 +82,8 @@ table_order.extend(
 
 def layout():
     layout = dbc.Container(
-        [
-            dcc.Markdown(
-                "# ![](/assets/cs3_icon_draft.png) CalSim 3 Results One Pager"
-            ),
+        class_name="m-2",
+        children=[
             dcc.Markdown("### Summary Table"),
             dbc.Row(
                 [
@@ -107,7 +106,7 @@ def layout():
                     ),
                 ]
             ),
-        ]
+        ],
     )
     return layout
 
