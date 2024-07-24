@@ -14,6 +14,12 @@ register_page(
     order=2,
 )
 
+title_ta_dry_wet_text = (
+    """This page shows % of Maximum Table A amount during select dry and wet periods
+      included in the DCR 2023 Main Report.""",
+    html.Br(),
+    html.Br(),
+)
 
 drypers = [
     "Six Year Drought (1929-1934)",
@@ -33,6 +39,12 @@ wetpers = [
     "Ten Year Wet Sequence (1978-1987)",
     "Single Wet Year (2017)",
 ]
+ta_periods_text = dbc.Row(
+        [
+            html.A(title_ta_dry_wet_text),
+        ],
+        class_name="m-3",
+)
 
 dry_pers = ta_dry_wet_barplot(
     df_dv,
@@ -58,6 +70,12 @@ def layout():
         class_name="m-2",
         children=[
             dcc.Download(id="download-response-table-a"),
+            dbc.Row(
+                class_name="my-2",
+                children=[
+                    load_markdown("page_text/table-a-percent-max.md"),
+                ],
+            ),
             dbc.Row(
                 class_name="my-2",
                 children=[

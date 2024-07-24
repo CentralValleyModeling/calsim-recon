@@ -9,18 +9,9 @@ from dash import Input, Output, State, callback, dcc, html, register_page
 from charts.chart_layouts import ann_exc_plot, mon_exc_plot
 from pages.styles import PLOT_COLORS
 from utils.query_data import date_map, df_dv, scen_aliases, var_dict
-from utils.tools import (
-    cfs_taf,
-    convert_cm_nums,
-    convert_wyt_nums,
-    list_files,
-    load_data_mult,
-    make_ressum_df,
-    make_summary_df,
-    month_list,
-    month_map,
-    wyt_list,
-)
+from utils.tools import (cfs_taf, convert_cm_nums, convert_wyt_nums,
+                         list_files, load_data_mult, make_ressum_df,
+                         make_summary_df, month_list, month_map, wyt_list)
 
 register_page(
     __name__,
@@ -28,6 +19,25 @@ register_page(
     top_nav=True,
     path="/drilldown",
     order=6,
+)
+
+drilldown_text = (
+    """This page allows users to view various plots and metrics on a timeseries.
+    The user can choose timeseries by B-Part or by alias using the drop down menus
+    or by typing within the text box.""",
+    html.Br(),
+    """Plots and statistics include: monthly and annual timeseries, 
+    monthly and annual probability of non-exceedance curves,
+    monthly and annual average.""",
+    html.Br(),
+    html.Br(),
+    """Users have the flexibility to change the year type for annual plots,
+    aggregation method for annual timeseries,
+    months in the exceedance probability plot,
+    water year types for the monthly avearge,
+    using the slider and drop down menu.""",
+    html.Br(),
+    html.Br(),
 )
 
 bparts = []
@@ -52,7 +62,8 @@ def layout(**kwargs):
         children=[
             dbc.Row(
                 [
-                    html.H3("Drilldown"),
+                    html.H1("Drilldown"),
+                    html.A(drilldown_text),
                     dbc.Col(
                         [
                             "Select B-Part: ",

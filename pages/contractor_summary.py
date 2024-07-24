@@ -1,16 +1,7 @@
 # import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
-from dash import (
-    Input,
-    Output,
-    State,
-    callback,
-    dash_table,
-    dcc,
-    html,
-    no_update,
-    register_page,
-)
+from dash import (Input, Output, State, callback, dash_table, dcc, html,
+                  no_update, register_page)
 
 from charts.chart_layouts import ann_exc_plot
 from data import create_download_button, universal_data_download
@@ -24,6 +15,19 @@ register_page(
     top_nav=True,
     path="/contractor_summary",
     order=5,
+)
+
+contractor_summary_text = (
+    """This page shows the long-term SWP Table A deliveries average
+     from Contract Year 1922-2021. There is an exceedance probability plot below.
+     To view the exceedance probability plot for a contractor,
+     click on any of the B-Part variables.""",
+    html.Br(),
+    html.Br(),
+    """Users have the flexibility to
+     change the averaging time period using the slider and drop down menu.""",
+    html.Br(),
+    html.Br(),
 )
 
 b = []
@@ -75,6 +79,8 @@ def layout(**kwargs):
         class_name="m-2",
         children=[
             dcc.Download(id="download-response-contractor"),
+            html.H1(["Contractor Summary"]),
+            html.A(contractor_summary_text),
             # dcc.Markdown("# ![](/assets/cs3_icon_draft.png) CalSim 3 Summary Table"),
             dcc.RangeSlider(
                 1922,

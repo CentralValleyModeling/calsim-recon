@@ -3,20 +3,13 @@ import dash_bootstrap_components as dbc
 import pandas as pd
 import plotly.express as px
 import yaml
-from dash import Dash, Input, Output, callback, dash_table, dcc, html, register_page
+from dash import (Dash, Input, Output, callback, dash_table, dcc, html,
+                  register_page)
 
 from utils.query_data import df_dv, scen_aliases, var_dict
-from utils.tools import (
-    cfs_taf,
-    convert_cm_nums,
-    convert_wyt_nums,
-    load_data_mult,
-    make_ressum_df,
-    make_summary_df,
-    month_list,
-    month_map,
-    wyt_list,
-)
+from utils.tools import (cfs_taf, convert_cm_nums, convert_wyt_nums,
+                         load_data_mult, make_ressum_df, make_summary_df,
+                         month_list, month_map, wyt_list)
 
 register_page(
     __name__,
@@ -26,6 +19,13 @@ register_page(
     order=4,
 )
 
+summary_text = (
+    """This page provides annual averages for key system variables. """,
+    """Types include upstream river flows, Delta inflow """,
+    """and outflows, exports, and deliveries.""",
+    html.Br(),
+    html.Br(),
+)
 
 exp_tbl = make_summary_df(
     scen_aliases,
@@ -46,6 +46,8 @@ exp_tbl = make_summary_df(
         #   '----'
         "DELTAINFLOWFORNDOI",
         #    '----'
+        "NDOI",
+        # 
         "C_CAA003",
         "C_CAA003_SWP",
         "C_CAA003_CVP",
@@ -84,7 +86,8 @@ def layout():
     layout = dbc.Container(
         class_name="m-2",
         children=[
-            dcc.Markdown("### Summary Table"),
+            dcc.Markdown("# Summary Table"),
+            html.A(summary_text),
             dbc.Row(
                 [
                     dcc.Markdown("#### "),

@@ -1,3 +1,3 @@
-### Table A allocation during wet periods
+### Dry Periods
 
-Estimated Wet-Period Deliveries of SWP Table A Water Excluding Butte County, Yuba City, and Plumas County FCWCD (Existing Conditions, in TAF / Contract Year) and Percent of Maximum SWP Table A Amount, 4,133 TAF/year."
+Estimated Dry-Period Percent of Maximum SWP Table A Amount, 4,133 TAF/year, of SWP Table A Water Excluding Butte County, Yuba City, and Plumas County FCWCD.

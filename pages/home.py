@@ -31,7 +31,7 @@ dcr_cover_path = "assets/final_dcr_2023_cover.png"
 ta_card = CardWidget(
     "Total SWP Table A and Carryover Deliveries",
     button_id="table_a_btn",
-    button_label="View by Contractor",
+    button_label="View Table A by Contractor",
     button_id2="ta_wet_dry",
     button_label2="Wet and Dry Periods",
     chart=card_bar_plot_cy(

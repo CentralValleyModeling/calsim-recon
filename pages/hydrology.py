@@ -15,12 +15,25 @@ register_page(
 
 # Cards
 
+hydrology_text = (
+    """This page provides annual and monthly averages for four hydrologic metrics:
+     Eight River Index, Sacramento River Runoff, San Joaquin River Runoff,
+      and Oroville reservoir inflow.""",
+    html.Br(),
+    html.Br(),
+    """Additional monthly average plots are provided for Oroville reservoir inflow.
+    One is inflow during drier years (Dry and Critical Sac Valley Index)
+    and the other is inflow during wetter years (Wet and Above Normal).""",
+    html.Br(),
+    html.Br(),
+)
+
 eight_ri_card_ann = CardWidget(
     "Eight River Index",
     button_id=None,
     button_label=None,
     chart=card_bar_plot_cy(df_sv, b_part="8RI"),
-    text="",
+    text=load_markdown("page_text/hydrology-8ri.md"),
 )
 
 sac_four_ri_card_ann = CardWidget(
@@ -28,15 +41,15 @@ sac_four_ri_card_ann = CardWidget(
     button_id=None,
     button_label=None,
     chart=card_bar_plot_cy(df_sv, b_part="SAC4"),
-    text="",
-)
+    text=load_markdown("page_text/hydrology-sacramento-4ri.md"),
+    )
 
 sjr_four_ri_card_ann = CardWidget(
     "San Joaquin River Runoff",
     button_id=None,
     button_label=None,
     chart=card_bar_plot_cy(df_sv, b_part="SJR4"),
-    text="",
+    text=load_markdown("page_text/hydrology-san-joaquin-4ri.md"),
 )
 
 orov_inflow_card_ann = CardWidget(
@@ -52,7 +65,7 @@ eight_ri_card_mon = CardWidget(
     button_id=None,
     button_label=None,
     chart=card_mon_plot(df_sv, b_part="8RI", yaxis_title="Eight River Index (TAF)"),
-    text=load_markdown("page_text/hydrology-8ri.md"),
+    text="",
 )
 
 sac_four_ri_card_mon = CardWidget(
@@ -62,7 +75,7 @@ sac_four_ri_card_mon = CardWidget(
     chart=card_mon_plot(
         df_sv, b_part="SAC4", yaxis_title="Sacramento River Runoff (TAF)"
     ),
-    text=load_markdown("page_text/hydrology-sacramento-4ri.md"),
+    text="",
 )
 
 sjr_four_ri_card_mon = CardWidget(
@@ -72,7 +85,7 @@ sjr_four_ri_card_mon = CardWidget(
     chart=card_mon_plot(
         df_sv, b_part="SJR4", yaxis_title="San Joaquin River Runoff (TAF)"
     ),
-    text=load_markdown("page_text/hydrology-san-joaquin-4ri.md"),
+    text="",
 )
 
 orov_inflow_card_mon = CardWidget(
@@ -116,7 +129,8 @@ def layout():
             dcc.Download(id="download-response-hydrology"),
             dbc.Col(
                 [
-                    html.H3(["Hydrology Comparison"]),
+                    html.H1(["Hydrology Comparison"]),
+                    html.A(hydrology_text),
                     dbc.Row(
                         [
                             dbc.Col(eight_ri_card_ann.create_card(height="25rem")),

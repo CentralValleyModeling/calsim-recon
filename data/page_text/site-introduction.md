@@ -1,6 +1,6 @@
-This is the Delivery Capability Report **Re**sults **Con**sole (ReCon), an interactive tool designed to complement the Delivery Capability Report. ReCon allows users to explore and visualize key outputs of the DCR 2023 CalSim 3 models, providing a dynamic and engaging way to understand delivery performance and capabilities.
+Welcome to the Delivery Capability Report **Re**sults **Con**sole (ReCon), an interactive dashboard designed to complement the 2023 Delivery Capability Report.
 
-The Delivery Capability Report presents California Department of Water Resources (DWR) analysis of the State Water Project (SWP) system and provides important planning information for users of SWP water. The analysis provides information about how changing climate, regulatory, and operational considerations impact SWP delivery capability.
+The Delivery Capability Report is used widely both within and outside the SWP for water supply planning. The information in these reports is a key component of the drought planning done by the SWP and is fundamental to the drought planning done by the Public Water Agencies that receive SWP and Central Valley Project water. The Report provides the information needed by these agencies to develop and manage their own water supply portfolios and is an important input for Sustainable Groundwater Management Plans, Urban Water Management Plans, Agricultural Water Management Plans, and Integrated Regional Water Management Plans. 
 
 **The most salient findings of the DCR 2023 are:**  
 
