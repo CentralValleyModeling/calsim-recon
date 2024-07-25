@@ -48,8 +48,9 @@ var_dict["SWP_CO_SOD"] = {
 }
 
 # Special logic for the DCR:
-# The DCR reports calendar year average of 1921 - 2021, but the full range of data does not exist for CY 2021
-# This logic extends the dataset by three months by averaging the last nine months of data
+# The DCR reports calendar year average of 1921 - 2021, but the full range of data
+# does not exist for CY 2021 This logic extends the dataset by three months by
+# averaging the last nine months of data
 # Consistent with how the DCR excel report tool does it
 df_dv_extended = pd.DataFrame()
 for s in df_dv["Scenario"].unique():
