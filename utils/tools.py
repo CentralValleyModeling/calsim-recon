@@ -176,6 +176,7 @@ def make_summary_df(
     scenlist: list[int],
     df: pd.DataFrame,
     var_dict: dict,
+    yrkind: str = 'iwy',
     start_yr: int = 1922,
     end_yr: int = 2021,
     monthfilter: Iterable[int] = monthfilter,
@@ -183,7 +184,9 @@ def make_summary_df(
 ) -> pd.DataFrame:
 
     df1 = df.loc[
-        (df["icm"].isin(monthfilter)) & (df["iwy"] >= start_yr) & (df["iwy"] <= end_yr)
+        (df["icm"].isin(monthfilter)) &
+        (df[yrkind] >= start_yr) &
+        (df[yrkind] <= end_yr)
     ]
     columns_to_drop = [col for col in df1.columns if "S_" in col]
     df1 = df1.drop(columns=columns_to_drop)
@@ -208,16 +211,18 @@ def make_summary_df(
     # Make a dictionary of just aliases to map to the dataframe
     alias_dict = {}
     type_dict = {}
+    convert_dict = {}
     for key in var_dict:
         alias_dict[key] = var_dict[key]["alias"]
         type_dict[key] = var_dict[key]["type"]
+        convert_dict[key] = "TAF/Yr" \
+            if var_dict[key]["table_convert"] == 'cfs_taf' else ''
+
     df_tbl = df_tbl.T
     # Add index columns
     df_tbl["description"] = df_tbl.index.map(alias_dict)
     df_tbl["type"] = df_tbl.index.map(type_dict)
-    df_tbl["year"] = "Water Year"
-    contract_mask = df_tbl["type"].str.lower().isin(("delivery",))
-    df_tbl.loc[contract_mask, "year"] = "Contract Year"
+    df_tbl["convert"] = df_tbl.index.map(convert_dict)
     # Calculate tables
     df_tbl["diff"] = df_tbl[scenlist[1]].sub(
         df_tbl[scenlist[0]],

@@ -40,10 +40,10 @@ wetpers = [
     "Single Wet Year (2017)",
 ]
 ta_periods_text = dbc.Row(
-        [
-            html.A(title_ta_dry_wet_text),
-        ],
-        class_name="m-3",
+    [
+        html.A(title_ta_dry_wet_text),
+    ],
+    class_name="m-3",
 )
 
 dry_pers = ta_dry_wet_barplot(
@@ -67,7 +67,7 @@ DWNLD_WET_ID = "table-a-wet-years"
 
 def layout():
     layout = dbc.Container(
-        class_name="m-2",
+        class_name="my-3",
         children=[
             dcc.Download(id="download-response-table-a"),
             dbc.Row(

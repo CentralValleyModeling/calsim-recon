@@ -97,7 +97,8 @@ bparts = [
 
 def layout():
     layout = dbc.Container(
-        [
+        class_name="my-3",
+        children=[
             dbc.Row(
                 [
                     dcc.Markdown(

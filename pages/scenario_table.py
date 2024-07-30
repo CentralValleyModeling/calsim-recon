@@ -33,7 +33,8 @@ WIDGET_STYLE = {
 
 
 def layout(**kwargs):
-    return html.Div(
+    return dbc.Container(
+        class_name="my-3",
         id="scenario-list",
         children=[dcc.Markdown("Placeholder for csrs stuff")],
     )

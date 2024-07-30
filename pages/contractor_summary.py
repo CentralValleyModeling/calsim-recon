@@ -1,9 +1,18 @@
 # import plotly.graph_objects as go
 import dash_bootstrap_components as dbc
-from dash import (Input, Output, State, callback, dash_table, dcc, html,
-                  no_update, register_page)
+from dash import (
+    Input,
+    Output,
+    State,
+    callback,
+    dash_table,
+    dcc,
+    html,
+    no_update,
+    register_page,
+)
 
-from charts.chart_layouts import ann_exc_plot
+from charts.chart_layouts import ann_exc_plot, distplot
 from data import create_download_button, universal_data_download
 from data.downloads import CHART_REGISTRY
 from utils.query_data import df_dv, scen_aliases, var_dict
@@ -20,7 +29,7 @@ register_page(
 contractor_summary_text = (
     """This page shows the long-term SWP Table A deliveries average
      from Contract Year 1922-2021. There is an exceedance probability plot below.
-     To view the exceedance probability plot for a contractor,
+     To view the exceedance probability plot and histogram for a contractor,
      click on any of the B-Part variables.""",
     html.Br(),
     html.Br(),
@@ -71,12 +80,14 @@ def layout(**kwargs):
         if var_dict[i]["type"] == typefilter:
             b.append(i)
     exp_tbl = make_summary_df(
-        scen_aliases, df_dv, var_dict, bparts=b, start_yr=1922, end_yr=2021
+        scen_aliases, df_dv, var_dict, bparts=b,
+        yrkind='icy', start_yr=1922, end_yr=2021
     )
     graph_div = dcc.Graph(id="contractor-exceedance-graph")
+    distplot_div = dcc.Graph(id="contractor-dist-plot")
 
     layout = dbc.Container(
-        class_name="m-2",
+        class_name="my-y",
         children=[
             dcc.Download(id="download-response-contractor"),
             html.H1(["Contractor Summary"]),
@@ -120,6 +131,7 @@ def layout(**kwargs):
                         className="m-3",
                         children=create_download_button(DWNLD_BUTTON_ID, graph_div),
                     ),
+                    distplot_div,
                 ]
             ),
         ],
@@ -138,6 +150,7 @@ def update_table(slider_yr_range):
         df_dv,
         var_dict,
         bparts=b,
+        yrkind='icy',
         start_yr=slider_yr_range[0],
         end_yr=slider_yr_range[1],
     )
@@ -184,9 +197,27 @@ def show_contractor_data(click_data):
             b,
             monthchecklist=month_list,
             yearwindow="Calendar Year",
+            title=b,
         )
         # We need to re-register the figure when it's updated
         CHART_REGISTRY[DWNLD_BUTTON_ID] = lambda *_: fig
+        return fig
+
+
+@callback(
+    Output("contractor-dist-plot", "figure"),
+    Input("exp_tbl", "active_cell"),
+    prevent_initial_call=True,
+)
+def show_contractor_distplot(click_data):
+    if click_data is None:
+        return "Click on a cell"
+    else:
+        b = exp_tbl.loc[click_data["row"]]["bpart"]
+        fig = distplot(df_dv, b,
+                       xlabel="Annual Average (TAF/yr)",
+                       ylabel="Count",
+                       title=b)
         return fig
 
 

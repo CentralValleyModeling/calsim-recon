@@ -42,7 +42,7 @@ sac_four_ri_card_ann = CardWidget(
     button_label=None,
     chart=card_bar_plot_cy(df_sv, b_part="SAC4"),
     text=load_markdown("page_text/hydrology-sacramento-4ri.md"),
-    )
+)
 
 sjr_four_ri_card_ann = CardWidget(
     "San Joaquin River Runoff",
@@ -124,7 +124,7 @@ orov_inflow_card_wetter_mon = CardWidget(
 
 def layout():
     layout = dbc.Container(
-        class_name="m-2",
+        class_name="my-3",
         children=[
             dcc.Download(id="download-response-hydrology"),
             dbc.Col(

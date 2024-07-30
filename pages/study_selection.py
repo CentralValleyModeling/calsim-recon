@@ -18,7 +18,8 @@ scen_dict = (
 
 def layout():
     layout = dbc.Container(
-        [
+        class_name="my-3",
+        children=[
             dcc.Markdown(
                 "# ![](/assets/cs3_icon_draft.png) CalSim 3 Dashboard - Study Selection"
             ),
@@ -75,6 +76,6 @@ def layout():
                     ),
                 ]
             ),
-        ]
+        ],
     )
     return layout

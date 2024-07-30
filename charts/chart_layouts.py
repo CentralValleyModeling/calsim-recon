@@ -13,7 +13,7 @@ from utils.tools import cfs_taf, convert_cm_nums, month_list, monthfilter
 INFO_ICON = html.I(className='fa fa-info-circle', style=dict(display='inline-block'))
 
 
-# ToDo use dictionaries to allow arbitrary number of buttons
+# TODO use dictionaries to allow arbitrary number of buttons
 class CardWidget:
     def __init__(
         self,
@@ -329,7 +329,12 @@ def mon_exc_plot(df, b_part, monthchecklist):
     return fig
 
 
-def ann_exc_plot(df, b_part, monthchecklist, yearwindow):
+def ann_exc_plot(df,
+                 b_part,
+                 monthchecklist,
+                 yearwindow,
+                 title: str = None,
+):
     series_container = []
     if yearwindow == "Calendar Year":
         yw = "icy"
@@ -373,6 +378,7 @@ def ann_exc_plot(df, b_part, monthchecklist, yearwindow):
         )
 
     fig1.update_layout(
+        title=title,
         plot_bgcolor="white",
         xaxis_title="Non Exceedance Probability (%)",
         xaxis_tickformat=",d",
@@ -386,7 +392,13 @@ def ann_exc_plot(df, b_part, monthchecklist, yearwindow):
     return fig1
 
 
-def distplot(df, b_part):
+def distplot(
+        df,
+        b_part,
+        title: str = None,
+        xlabel: str = None,
+        ylabel: str = None,
+):
     df2 = pd.DataFrame()
     df0 = df
     df0 = cfs_taf(df0, var_dict)
@@ -400,6 +412,23 @@ def distplot(df, b_part):
     fig = px.histogram(
         df2, marginal="box", color_discrete_sequence=PLOT_COLORS, barmode="relative"
     )
+
+    fig.update_layout(
+        title=title,
+        plot_bgcolor="white",
+        xaxis_title=xlabel,
+        xaxis_tickformat=",d",
+        yaxis_title=ylabel,
+        legend_title="Scenario",
+        showlegend=True,
+        xaxis=dict(gridcolor="LightGrey"),
+        yaxis=dict(gridcolor="LightGrey"),
+    )
+
+    fig.for_each_trace(lambda trace: trace.update(visible='legendonly')
+                       if trace.name in scen_aliases[-4:] else ()
+    )
+
     return fig
 
 

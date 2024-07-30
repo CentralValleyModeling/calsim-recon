@@ -74,7 +74,7 @@ def layout():
     a21_text = dbc.Row(
         [
             html.H1("Article 21 Deliveries - Dry and Wet Periods"),
-            html.A(title_a21_dry_wet_text),            
+            html.A(title_a21_dry_wet_text),
         ],
         class_name="m-3",
     )
@@ -96,7 +96,7 @@ def layout():
         class_name="m-3",
     )
     layout = dbc.Container(
-        class_name="m-2",
+        class_name="my-3",
         children=[
             dcc.Download(id="download-response-article-21"),
             dbc.Col([a21_text, dry_div, wet_div]),
