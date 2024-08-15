@@ -1,0 +1,1 @@
+San Joaquin River Runoff is the sum of Stanislaus River inflow to New Melones Lake, Tuolumne River inflow to New Don Pedro Reservoir, Merced River inflow to Lake McClure, and San Joaquin River inflow to Millerton Lake

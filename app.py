@@ -1,24 +1,38 @@
 import dash
-from dash import html, dcc, Input, Output, callback
 import dash_bootstrap_components as dbc
-from navbar import create_navbar
-from utils.tools import load_data_mult
-import dash_uploader as du
+from dash import dcc, html
 
-#from pages.study_selection import scenarios, var_dict, date_map
-
-# Toggle the themes at [dbc.themes.LUX]
-# The full list of available themes is:
-# BOOTSTRAP, CERULEAN, COSMO, CYBORG, DARKLY, FLATLY, JOURNAL, LITERA, LUMEN,
-# LUX, MATERIA, MINTY, PULSE, SANDSTONE, SIMPLEX, SKETCHY, SLATE, SOLAR,
-# SPACELAB, SUPERHERO, UNITED, YETI, ZEPHYR.
-# To see all themes in action visit:
-# https://dash-bootstrap-components.opensource.faculty.ai/docs/themes/explorer/
-
-NAVBAR = create_navbar()
-# To use Font Awesome Icons
 FA621 = "https://use.fontawesome.com/releases/v6.2.1/css/all.css"
-APP_TITLE = "CalSim 3 Results Dashboard"
+APP_TITLE = "SWP Delivery Capability Report 2023 Results Console (ReCon)"
+CS3_ICON = "assets/cs3_icon_draft.png"
+
+
+class ReconNavbarBrand(dbc.NavbarBrand):
+    def __init__(self, label: str, **kwargs):
+        img = html.Img(
+            src=str(CS3_ICON),
+            height="30px",
+        )
+        label = dbc.NavbarBrand(label, className="m-0")
+        children = dbc.Row(
+            [
+                dbc.Col(img),
+                dbc.Col(label),
+            ],
+            align="center",
+            className="g-2",
+        )
+        # Update kwargs
+        kwargs = {
+            "href": "/",
+            "children": children,
+            "style": {
+                "textDecoration": "none",
+                "margin": "0",
+            },
+        } | kwargs
+        super().__init__(**kwargs)
+
 
 app = dash.Dash(
     __name__,
@@ -28,19 +42,32 @@ app = dash.Dash(
         FA621,  # Font Awesome Icons CSS
     ],
     title=APP_TITLE,
-    use_pages=True,  # New in Dash 2.7 - Allows us to register pages
+    use_pages=True,
 )
 
-du.configure_upload(app, 'uploads')
+pages = [
+    dbc.NavItem(dbc.NavLink(page["name"], href=page["relative_path"]))
+    for page in dash.page_registry.values()
+]
 
-app.layout = html.Div([
-                NAVBAR,
-                dash.page_container,
-               
-            ],)
+navbar = dbc.NavbarSimple(
+    brand=ReconNavbarBrand("SWP DCR 2023 Recon"),
+    children=pages,
+    color="light",
+    dark=False,
+    className="mb-0",
+)
 
+
+app.layout = html.Div(
+    [
+        dcc.Location(id="url", refresh=False),
+        navbar,
+        dash.page_container,
+    ],
+)
 
 server = app.server
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     app.run_server(debug=True)

@@ -12,3 +12,4 @@ __pycache__/
 *.dsd
 *.dsk
 *.pyc
+debug.log
