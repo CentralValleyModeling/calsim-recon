@@ -1,10 +1,8 @@
 import sys
 import geopandas as gpd
 import plotly.express as px
-from dash import Dash, dcc, html
-import json
+from dash import Dash, dcc, html, Input, Output, callback
 import pyproj
-import plotly.figure_factory as ff
 import pandas as pd
 
 sys.path.append(".")
@@ -182,6 +180,8 @@ def create_df_for_scen(
     scen_geodf["VAL_2"] = data_df_2["VAL"]
     scen_geodf["VAL_DIFF"] = scen_geodf["VAL_1"] - scen_geodf["VAL_2"]
     scen_geodf = scen_geodf.reset_index()
+    print(f"scen_1 = {scenario1}, scen_2 = {scenario2}")
+    print(scen_geodf)
     # scen_geodf = scen_geodf.dropna()
 
     return scen_geodf
@@ -193,34 +193,63 @@ def run_test_app():
     print("data_df:")
     print(data_df)
 
+    scenario_list = data_df["Scenario"].unique()
+
     geodf = load_shp()
     print("geodf:")
     print(geodf)
 
-    scen1 = "DCR_21_Hist"
-    scen2 = "DCR_23_Hist"
-    scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
-    print("scen_geodf:")
-    print(scen_geodf)
+    # scen1 = "DCR_21_Hist"
+    # scen2 = "DCR_23_Hist"
+    # scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
+    # print("scen_geodf:")
+    # print(scen_geodf)
 
-    fig = create_plot(scen_geodf)
+    # fig = create_plot(scen_geodf)
 
-    # Get the figure for the state border
-    figca = create_ca_plot()
+    # # Get the figure for the state border
+    # figca = create_ca_plot()
 
     # Add inner figure to the state
-    for i in range(len(fig.data)):
-        figca.add_trace(fig.data[i])
+    # for i in range(len(fig.data)):
+    #     figca.add_trace(fig.data[i])
 
     app.layout = html.Div(
         children=[
             html.H1("Shapefile to Map"),
+            html.Div(
+                [dcc.Dropdown(scenario_list, scenario_list[0], id="scenario_1")],
+                style={"width": "48%", "display": "inline-block"},
+            ),
+            html.Div(
+                [dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2")],
+                style={"width": "48%", "display": "inline-block"},
+            ),
             dcc.Graph(
                 id="my_id",
-                figure=figca,
+                # figure=figca,
             ),
         ]
     )
+
+    @callback(
+        Output("my_id", "figure"),
+        Input("scenario_1", "value"),
+        Input("scenario_2", "value"),
+    )
+    def update_graph(scen1: str, scen2: str):
+        scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
+
+        fig = create_plot(scen_geodf)
+
+        # Get the figure for the state border
+        figca = create_ca_plot()
+
+        # Add inner figure to the state
+        for i in range(len(fig.data)):
+            figca.add_trace(fig.data[i])
+
+        return figca
 
     app.run(debug=True)
 
