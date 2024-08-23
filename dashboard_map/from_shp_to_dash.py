@@ -28,7 +28,7 @@ swp2convention = {
     "SWP_TA_SGP": "SWC_SGPWA",
     "SWP_TA_SLO": "SWC_SLOCFCWCD",
     "SWP_TA_SB": "SWC_SBCFCWCD",
-    "SWP_TA_SCV": "SWC_SCVWD",  # newly added
+    "SWP_TA_SCV": "SWC_SCVWD",
     "SWP_TA_CLWA1": "SWC_SCVWA",
     "SWP_TA_CLWA2": "SWC_SCVWA",
     "SWP_TA_TULARE": "SWC_TLBWSD",
@@ -63,12 +63,12 @@ agencyname2convention = {
 
 def calc_mean():
     combined_df = pd.DataFrame(
-        columns=["Scenario", "CONTRACTOR_CONVENTION", "iwy", "VAL"]
+        columns=["Scenario", "CONTRACTOR_CONVENTION", "icy", "VAL"]
     )
 
     for code in swp2convention:
         # Create a dataframe using the Scenario and code from df_dv
-        df = qd.df_dv[["Scenario", "iwy", code, "cfs_taf"]].copy()
+        df = qd.df_dv[["Scenario", "icy", code, "cfs_taf"]].copy()
 
         # Convert cfs to taf and drop cfs_taf column
         df[code] = df[code] * df["cfs_taf"]
@@ -86,12 +86,12 @@ def calc_mean():
 
     # Calculate sum of val for Scenario, Agency name, and water year
     combined_df = combined_df.groupby(
-        ["Scenario", "CONTRACTOR_CONVENTION", "iwy"]
+        ["Scenario", "CONTRACTOR_CONVENTION", "icy"]  # change to icy
     ).sum()
 
     # Remove iwy column
     combined_df = combined_df.reset_index()
-    combined_df = combined_df.drop(columns=["iwy"])
+    combined_df = combined_df.drop(columns=["icy"])
 
     # Calculate mean
     combined_df = combined_df.groupby(["Scenario", "CONTRACTOR_CONVENTION"]).mean()
@@ -111,6 +111,7 @@ def calc_mean():
 
 def load_shp() -> gpd.GeoDataFrame:
     geodf = gpd.read_file("SWP_Contractors.shp")
+    geodf.to_crs(pyproj.CRS.from_epsg(4326), inplace=True)
 
     # Add a column for conventions to geodf
     geodf["CONTRACTOR_CONVENTION"] = "TBD"
@@ -135,27 +136,67 @@ def create_ca_plot():
         basemap_visible=False,
         fitbounds="locations",
         height=800,
+        color_continuous_scale="Bluered",
     )
-
-    figca.update_layout(colorscale_sequential=px.colors.sequential.Blues)
-    # figca.update_layout(colorscale_sequentialminus="Reds")
 
     figca.update_layout(showlegend=True)
 
+    figca.update_layout(
+        coloraxis=dict(
+            cmin=-100,  # Minimum value of the color scale
+            cmax=100,  # Maximum value of the color scale
+            colorbar=dict(title="<b>VAL DIFF %</b>"),  # Bold legend title
+        )
+    )
     return figca
 
 
+def get_min_max(geodf: gpd.GeoDataFrame):
+    maximum = max(geodf["VAL_PERC"])
+    minimum = min(geodf["VAL_PERC"])
+    if minimum < 0 and maximum > 0:
+        abs_min = -minimum
+        if abs_min >= maximum:
+            maximum = abs_min
+        else:
+            minimum = -maximum
+
+    return (minimum, maximum)
+
+
 def create_plot(geodf: gpd.GeoDataFrame):
-    geodf.to_crs(pyproj.CRS.from_epsg(4326), inplace=True)
+    maximum = max(geodf["VAL_PERC"])
+    minimum = min(geodf["VAL_PERC"])
+    if minimum < 0 and maximum > 0:
+        abs_min = -minimum
+        if abs_min >= maximum:
+            maximum = abs_min
+        else:
+            minimum = -maximum
+
     fig = px.choropleth(
         geodf,
         geojson=geodf.geometry,
-        locations="OBJECTID",
-        hover_data={"VAL_DIFF": True, "OBJECTID": False},
+        locations=geodf.index,
+        hover_data={"VAL_DIFF": True, "VAL_PERC": True, "OBJECTID": False},
         hover_name="CONTRACTOR_CONVENTION",
-        color="VAL_DIFF",
+        color="VAL_PERC",
         basemap_visible=False,
         fitbounds="locations",
+        color_continuous_scale=[
+            [0, "#0000ff"],
+            [0.1, "#3333ff"],
+            [0.2, "#6666ff"],
+            [0.3, "#9999ff"],
+            [0.4, "#ccccff"],
+            [0.5, "#ffffff"],
+            [0.6, "#ffcccc"],
+            [0.7, "#ff9999"],
+            [0.8, "#ff6666"],
+            [0.9, "#ff3333"],
+            [1.0, "#ff0000"],
+        ],
+        range_color=(minimum, maximum),
     )
 
     return fig
@@ -179,12 +220,38 @@ def create_df_for_scen(
     scen_geodf["VAL_1"] = data_df_1["VAL"]
     scen_geodf["VAL_2"] = data_df_2["VAL"]
     scen_geodf["VAL_DIFF"] = scen_geodf["VAL_1"] - scen_geodf["VAL_2"]
+
+    # Create a column in scen_geodf for val_diff percentages
+    scen_geodf["VAL_PERC"] = (
+        ((scen_geodf["VAL_1"] - scen_geodf["VAL_2"]) / scen_geodf["VAL_1"]) * 100
+    ).round()
+
     scen_geodf = scen_geodf.reset_index()
     print(f"scen_1 = {scenario1}, scen_2 = {scenario2}")
     print(scen_geodf)
-    # scen_geodf = scen_geodf.dropna()
 
     return scen_geodf
+
+
+################ DEBUG #############
+import plotly.graph_objects as go
+
+
+def create_fig_1(geodf: gpd.GeoDataFrame):
+    fig1 = go.Figure(
+        data=go.Scattergeo(
+            lon=geodf.geometry.centroid.x,
+            lat=geodf.geometry.centroid.y,
+            text=geodf.index.astype(str),
+            mode="text",
+        )
+    )
+
+    fig1.update_geos(fitbounds="locations", visible=False)
+    return fig1
+
+
+####################################
 
 
 def run_test_app():
@@ -199,20 +266,8 @@ def run_test_app():
     print("geodf:")
     print(geodf)
 
-    # scen1 = "DCR_21_Hist"
-    # scen2 = "DCR_23_Hist"
-    # scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
-    # print("scen_geodf:")
-    # print(scen_geodf)
-
-    # fig = create_plot(scen_geodf)
-
-    # # Get the figure for the state border
-    # figca = create_ca_plot()
-
-    # Add inner figure to the state
-    # for i in range(len(fig.data)):
-    #     figca.add_trace(fig.data[i])
+    # Get the figure for the state border
+    figca = create_ca_plot()
 
     app.layout = html.Div(
         children=[
@@ -223,11 +278,10 @@ def run_test_app():
             ),
             html.Div(
                 [dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2")],
-                style={"width": "48%", "display": "inline-block"},
+                style={"width": "48%", "float": "right"},
             ),
             dcc.Graph(
                 id="my_id",
-                # figure=figca,
             ),
         ]
     )
@@ -239,17 +293,60 @@ def run_test_app():
     )
     def update_graph(scen1: str, scen2: str):
         scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
+        print("scen_geodf:")
+        print(scen_geodf)
 
         fig = create_plot(scen_geodf)
 
         # Get the figure for the state border
-        figca = create_ca_plot()
+        # figca = create_ca_plot()
+
+        # fig.add_trace(figca.data[0])
 
         # Add inner figure to the state
-        for i in range(len(fig.data)):
-            figca.add_trace(fig.data[i])
+        # for i in range(len(fig.data)):
+        #    figca.add_trace(fig.data[i])
+        # figca.add_trace(fig.data[0])
 
-        return figca
+        ################ DEBUG #############
+        fig1 = create_fig_1(scen_geodf)
+        # figca.add_trace(fig1.data[0])
+        ####################################
+
+        trace1 = figca.data[0]
+        trace2 = fig.data[0]
+        trace3 = fig1.data[0]
+        mycolor_scale = [
+            [0, "#0000ff"],
+            [0.1, "#3333ff"],
+            [0.2, "#6666ff"],
+            [0.3, "#9999ff"],
+            [0.4, "#ccccff"],
+            [0.5, "#ffffff"],
+            [0.6, "#ffcccc"],
+            [0.7, "#ff9999"],
+            [0.8, "#ff6666"],
+            [0.9, "#ff3333"],
+            [1.0, "#ff0000"],
+        ]
+
+        minimum, maximum = get_min_max(scen_geodf)
+
+        layout = go.Layout(
+            autosize=False,
+            height=1000,
+            colorscale={"diverging": mycolor_scale},
+            coloraxis={
+                "cmin": -50,
+                "cmax": 50,
+                "cauto": False,
+                "autocolorscale": False,
+            },
+        )
+        final_fig = go.Figure(data=[trace1, trace2, trace3], layout=layout)
+        final_fig.update_geos(fitbounds="locations", visible=False)
+
+        return final_fig
 
     app.run(debug=True)
 
