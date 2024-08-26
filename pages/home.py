@@ -196,7 +196,6 @@ legend_card = dbc.Card(
                     dbc.PopoverBody(load_markdown("page_text/info-dcr-23-cc95.md"),),
                     target='dcr-23-cc95-info',
                     trigger="hover"),
-                html.Br(),
             ]
         ),
     ],
