@@ -8,4 +8,4 @@ The Delivery Capability Report is used widely both within and outside the SWP fo
 * The likelihood of existing condition SWP Article 21 deliveries being greater than 20 TAF/year has increased by 4 percent relative to the likelihood presented in the 2021 Report.
 * Under the climate change scenarios, the estimated average annual delivery of Table A water shown in the three scenarios is 13 percent to 22 percent lower than under existing conditions.
 
-Comments and questions can be emailed to [CVMsupport@water.ca.gov](mailto:CVMsupport@water.ca.gov)
+Comments, questions and suggestions can be emailed to [CVMsupport@water.ca.gov](mailto:CVMsupport@water.ca.gov)

@@ -16,6 +16,8 @@ from charts.chart_layouts import CardWidget, card_bar_plot_cy, card_mon_exc_plot
 from data import load_markdown, universal_data_download
 from utils.query_data import df_dv
 
+INFO_ICON = html.I(className='fa fa-info-circle', style=dict(display='inline-block'))
+
 register_page(
     __name__,
     name="Home",
@@ -135,6 +137,70 @@ add_resources_card = dbc.Card(
     ],
 )
 
+legend_card = dbc.Card(
+    [
+        dbc.CardBody(
+            [
+                html.H4("Scenario Descriptions", className="card-title"),
+                html.A("DCR_21_Hist"),
+                dbc.Button(
+                                INFO_ICON,
+                                id='dcr-21-hist-info',
+                                color="link",
+                            ),
+                dbc.Popover(
+                    dbc.PopoverBody(load_markdown("page_text/info-dcr-21-hist.md"),),
+                    target='dcr-21-hist-info',
+                    trigger="hover"),
+                html.Br(),
+                html.A("DCR_23_Adj"),
+                dbc.Button(
+                                INFO_ICON,
+                                id='dcr-23-adj-info',
+                                color="link",
+                            ),
+                dbc.Popover(
+                    dbc.PopoverBody(load_markdown("page_text/info-dcr-23-adj.md"),),
+                    target='dcr-23-adj-info',
+                    trigger="hover"),
+                html.Br(),
+                html.A("DCR_23_CC50"),
+                dbc.Button(
+                                INFO_ICON,
+                                id='dcr-23-cc50-info',
+                                color="link",
+                            ),
+                dbc.Popover(
+                    dbc.PopoverBody(load_markdown("page_text/info-dcr-23-cc50.md"),),
+                    target='dcr-23-cc50-info',
+                    trigger="hover"),
+                html.Br(),
+                html.A("DCR_23_CC75"),
+                dbc.Button(
+                                INFO_ICON,
+                                id='dcr-23-cc75-info',
+                                color="link",
+                            ),
+                dbc.Popover(
+                    dbc.PopoverBody(load_markdown("page_text/info-dcr-23-cc75.md"),),
+                    target='dcr-23-cc75-info',
+                    trigger="hover"),
+                html.Br(),
+                html.A("DCR_23_CC95"),
+                dbc.Button(
+                                INFO_ICON,
+                                id='dcr-23-cc95-info',
+                                color="link",
+                            ),
+                dbc.Popover(
+                    dbc.PopoverBody(load_markdown("page_text/info-dcr-23-cc95.md"),),
+                    target='dcr-23-cc95-info',
+                    trigger="hover"),
+            ]
+        ),
+    ],
+)
+
 
 def layout():
     layout = dbc.Container(
@@ -159,9 +225,10 @@ def layout():
                     ),
                     dbc.Col(
                         id="home-introduction-links",
-                        class_name="col-md",
+                        className="d-grid gap-2",
                         children=[
                             add_resources_card,
+                            legend_card,
                         ],
                     ),
                 ],
