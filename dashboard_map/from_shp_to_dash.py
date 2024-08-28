@@ -174,30 +174,38 @@ def create_plot(geodf: gpd.GeoDataFrame):
         else:
             minimum = -maximum
 
-    fig = px.choropleth(
-        geodf,
-        geojson=geodf.geometry,
-        locations=geodf.index,
-        hover_data={"VAL_DIFF": True, "VAL_PERC": True, "OBJECTID": False},
-        hover_name="CONTRACTOR_CONVENTION",
-        color="VAL_PERC",
-        basemap_visible=False,
-        fitbounds="locations",
-        color_continuous_scale=[
-            [0, "#0000ff"],
-            [0.1, "#3333ff"],
-            [0.2, "#6666ff"],
-            [0.3, "#9999ff"],
-            [0.4, "#ccccff"],
-            [0.5, "#ffffff"],
-            [0.6, "#ffcccc"],
-            [0.7, "#ff9999"],
-            [0.8, "#ff6666"],
-            [0.9, "#ff3333"],
-            [1.0, "#ff0000"],
-        ],
-        range_color=(minimum, maximum),
-    )
+        fig = px.choropleth(
+            geodf,
+            geojson=geodf.geometry,
+            locations=geodf["RANK"],
+            hover_data={
+                "VAL_DIFF": True,
+                "VAL_PERC": True,
+                "AGENCYNAME": True,
+                "OBJECTID": False,
+            },
+            hover_name="CONTRACTOR_CONVENTION",
+            color="VAL_PERC",
+            basemap_visible=False,
+            fitbounds="locations",
+            color_continuous_scale=[
+                [0, "#0000ff"],
+                [0.1, "#3333ff"],
+                [0.2, "#6666ff"],
+                [0.3, "#9999ff"],
+                [0.4, "#ccccff"],
+                [0.5, "#ffffff"],
+                [0.6, "#ffcccc"],
+                [0.7, "#ff9999"],
+                [0.8, "#ff6666"],
+                [0.9, "#ff3333"],
+                [1.0, "#ff0000"],
+            ],
+            range_color=(minimum, maximum),
+        )
+
+    my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>index=%{location}<br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
+    fig.update_traces(hovertemplate=my_hovertemplate)
 
     return fig
 
@@ -226,6 +234,23 @@ def create_df_for_scen(
         ((scen_geodf["VAL_1"] - scen_geodf["VAL_2"]) / scen_geodf["VAL_1"]) * 100
     ).round()
 
+    # If VAL_1 is 0, set VAL_PERC to None
+    scen_geodf.loc[scen_geodf["VAL_1"] == 0, "VAL_PERC"] = None
+
+    # create another column in scen_geodf for VAl_DIFF w/ respective signs
+    scen_geodf["VAL_DIFF_SIGN"] = scen_geodf["VAL_DIFF"]
+    for value in scen_geodf["VAL_DIFF"]:
+        if value > 0:
+            scen_geodf.loc[scen_geodf["VAL_DIFF"] == value, "VAL_DIFF_SIGN"] = (
+                f"+{value}"
+            )
+
+    # create an area (in square meters) column and a rank column in the scen geodf
+    scen_geodf["area"] = scen_geodf.geometry.area
+    scen_geodf["RANK"] = (
+        scen_geodf["area"].rank(method="first", ascending=False).astype(int)
+    )
+
     scen_geodf = scen_geodf.reset_index()
     print(f"scen_1 = {scenario1}, scen_2 = {scenario2}")
     print(scen_geodf)
@@ -242,8 +267,9 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
         data=go.Scattergeo(
             lon=geodf.geometry.centroid.x,
             lat=geodf.geometry.centroid.y,
-            text=geodf.index.astype(str),
+            text=geodf["VAL_DIFF_SIGN"],
             mode="text",
+            hoverinfo="none",
         )
     )
 
@@ -265,19 +291,26 @@ def run_test_app():
     geodf = load_shp()
     print("geodf:")
     print(geodf)
+    print("geodf.crs:", geodf.crs)
 
     # Get the figure for the state border
     figca = create_ca_plot()
 
     app.layout = html.Div(
         children=[
-            html.H1("Shapefile to Map"),
+            html.H1("State Water Project Contractor Deliveries"),
             html.Div(
-                [dcc.Dropdown(scenario_list, scenario_list[0], id="scenario_1")],
+                [
+                    html.Label("Scenario 1:", htmlFor=("scenario_1")),
+                    dcc.Dropdown(scenario_list, scenario_list[0], id="scenario_1"),
+                ],
                 style={"width": "48%", "display": "inline-block"},
             ),
             html.Div(
-                [dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2")],
+                [
+                    html.Label("Scenario 2:", htmlFor=("scenario_2")),
+                    dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2"),
+                ],
                 style={"width": "48%", "float": "right"},
             ),
             dcc.Graph(
@@ -345,6 +378,12 @@ def run_test_app():
         )
         final_fig = go.Figure(data=[trace1, trace2, trace3], layout=layout)
         final_fig.update_geos(fitbounds="locations", visible=False)
+        final_fig.update_layout(
+            legend_title_text="VAL DIFF %",
+        )
+
+        for trace in final_fig.data:
+            print(trace.hovertemplate)
 
         return final_fig
 
