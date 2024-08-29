@@ -109,6 +109,20 @@ def calc_mean():
     return combined_df
 
 
+def area_from_geodf(geodf: gpd.GeoDataFrame):
+    # create a new geodf to get the area
+    rank_geodf = geodf.copy()
+
+    # Change the CRS with unit = degree to a CRS with unit = meter
+    rank_geodf = rank_geodf.to_crs({"init": "epsg:32610"})
+
+    # Create the area column
+    rank_geodf["AREA"] = geodf["geometry"].area
+
+    # Return the new column
+    return rank_geodf["AREA"]
+
+
 def load_shp() -> gpd.GeoDataFrame:
     geodf = gpd.read_file("SWP_Contractors.shp")
     geodf.to_crs(pyproj.CRS.from_epsg(4326), inplace=True)
@@ -123,6 +137,12 @@ def load_shp() -> gpd.GeoDataFrame:
 
         # Update the convention of the row
         geodf.loc[geodf["AGENCYNAME"] == name, "CONTRACTOR_CONVENTION"] = convention
+
+    # Add area to the geodf
+    geodf["AREA"] = area_from_geodf(geodf)
+
+    # Add rank column based on area
+    geodf["RANK"] = geodf["AREA"].rank(method="first").astype(int)
 
     return geodf
 
@@ -145,7 +165,9 @@ def create_ca_plot():
         coloraxis=dict(
             cmin=-100,  # Minimum value of the color scale
             cmax=100,  # Maximum value of the color scale
-            colorbar=dict(title="<b>VAL DIFF %</b>"),  # Bold legend title
+            colorbar=dict(
+                title="<b>VAL DIFF %</b>",
+            ),  # Bold legend title
         )
     )
     return figca
@@ -174,38 +196,40 @@ def create_plot(geodf: gpd.GeoDataFrame):
         else:
             minimum = -maximum
 
-        fig = px.choropleth(
-            geodf,
-            geojson=geodf.geometry,
-            locations=geodf["RANK"],
-            hover_data={
-                "VAL_DIFF": True,
-                "VAL_PERC": True,
-                "AGENCYNAME": True,
-                "OBJECTID": False,
-            },
-            hover_name="CONTRACTOR_CONVENTION",
-            color="VAL_PERC",
-            basemap_visible=False,
-            fitbounds="locations",
-            color_continuous_scale=[
-                [0, "#0000ff"],
-                [0.1, "#3333ff"],
-                [0.2, "#6666ff"],
-                [0.3, "#9999ff"],
-                [0.4, "#ccccff"],
-                [0.5, "#ffffff"],
-                [0.6, "#ffcccc"],
-                [0.7, "#ff9999"],
-                [0.8, "#ff6666"],
-                [0.9, "#ff3333"],
-                [1.0, "#ff0000"],
-            ],
-            range_color=(minimum, maximum),
-        )
+    fig = px.choropleth(
+        geodf,
+        geojson=geodf.geometry,
+        # locations=geodf["RANK"],
+        locations=geodf.index,
+        hover_data={
+            "VAL_DIFF": True,
+            "VAL_PERC": True,
+            "AGENCYNAME": True,
+            "OBJECTID": False,
+        },
+        hover_name="CONTRACTOR_CONVENTION",
+        color="VAL_PERC",
+        basemap_visible=False,
+        fitbounds="locations",
+        color_continuous_scale=[
+            [0, "#0000ff"],
+            [0.1, "#3333ff"],
+            [0.2, "#6666ff"],
+            [0.3, "#9999ff"],
+            [0.4, "#ccccff"],
+            [0.5, "#ffffff"],
+            [0.6, "#ffcccc"],
+            [0.7, "#ff9999"],
+            [0.8, "#ff6666"],
+            [0.9, "#ff3333"],
+            [1.0, "#ff0000"],
+        ],
+        range_color=(minimum, maximum),
+    )
 
     my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>index=%{location}<br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
     fig.update_traces(hovertemplate=my_hovertemplate)
+    # fig.update_layout(legend_title_text="VAL DIFF %")
 
     return fig
 
@@ -213,6 +237,7 @@ def create_plot(geodf: gpd.GeoDataFrame):
 def create_df_for_scen(
     data_df: pd.DataFrame, geodf: gpd.GeoDataFrame, scenario1: str, scenario2: str
 ):
+    # geodf = rank_to_geodf(geodf)
     scen_geodf = geodf.copy()
     scen_geodf = scen_geodf.set_index("CONTRACTOR_CONVENTION")
 
@@ -246,12 +271,14 @@ def create_df_for_scen(
             )
 
     # create an area (in square meters) column and a rank column in the scen geodf
-    scen_geodf["area"] = scen_geodf.geometry.area
-    scen_geodf["RANK"] = (
-        scen_geodf["area"].rank(method="first", ascending=False).astype(int)
-    )
+    # scen_geodf["area"] = scen_geodf.geometry.area
+    # scen_geodf["RANK"] = (
+    #     scen_geodf["area"].rank(method="first", ascending=False).astype(int)
+    # )
 
     scen_geodf = scen_geodf.reset_index()
+    scen_geodf = scen_geodf.set_index("RANK")
+
     print(f"scen_1 = {scenario1}, scen_2 = {scenario2}")
     print(scen_geodf)
 
@@ -343,12 +370,14 @@ def run_test_app():
 
         ################ DEBUG #############
         fig1 = create_fig_1(scen_geodf)
+        fig1.update_layout(showlegend=False)
         # figca.add_trace(fig1.data[0])
         ####################################
 
         trace1 = figca.data[0]
         trace2 = fig.data[0]
         trace3 = fig1.data[0]
+        print("trace 2:\n", type(trace3))
         mycolor_scale = [
             [0, "#0000ff"],
             [0.1, "#3333ff"],
@@ -378,9 +407,7 @@ def run_test_app():
         )
         final_fig = go.Figure(data=[trace1, trace2, trace3], layout=layout)
         final_fig.update_geos(fitbounds="locations", visible=False)
-        final_fig.update_layout(
-            legend_title_text="VAL DIFF %",
-        )
+        # final_fig.update_layout(coloraxis_colorbar_y=0.9)
 
         for trace in final_fig.data:
             print(trace.hovertemplate)
