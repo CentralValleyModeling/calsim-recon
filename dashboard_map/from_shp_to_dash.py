@@ -4,6 +4,7 @@ import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, callback
 import pyproj
 import pandas as pd
+import plotly.graph_objects as go
 
 sys.path.append(".")
 import utils.query_data as qd
@@ -111,16 +112,16 @@ def calc_mean():
 
 def area_from_geodf(geodf: gpd.GeoDataFrame):
     # create a new geodf to get the area
-    rank_geodf = geodf.copy()
+    area_geodf = geodf.copy()
 
     # Change the CRS with unit = degree to a CRS with unit = meter
-    rank_geodf = rank_geodf.to_crs({"init": "epsg:32610"})
+    area_geodf = area_geodf.to_crs({"init": "epsg:32610"})
 
     # Create the area column
-    rank_geodf["AREA"] = geodf["geometry"].area
+    area_geodf["AREA"] = geodf["geometry"].area
 
     # Return the new column
-    return rank_geodf["AREA"]
+    return area_geodf["AREA"]
 
 
 def load_shp() -> gpd.GeoDataFrame:
@@ -159,43 +160,33 @@ def create_ca_plot():
         color_continuous_scale="Bluered",
     )
 
-    figca.update_layout(showlegend=True)
+    figca.update_layout(showlegend=False)
+    figca.update_traces(hoverinfo="skip", hovertemplate=None)
 
-    figca.update_layout(
-        coloraxis=dict(
-            cmin=-100,  # Minimum value of the color scale
-            cmax=100,  # Maximum value of the color scale
-            colorbar=dict(
-                title="<b>VAL DIFF %</b>",
-            ),  # Bold legend title
-        )
-    )
     return figca
 
 
 def get_min_max(geodf: gpd.GeoDataFrame):
+    # Get min and max values
     maximum = max(geodf["VAL_PERC"])
     minimum = min(geodf["VAL_PERC"])
-    if minimum < 0 and maximum > 0:
-        abs_min = -minimum
-        if abs_min >= maximum:
-            maximum = abs_min
-        else:
-            minimum = -maximum
 
-    return (minimum, maximum)
+    # Make min positive if it is negative
+    if minimum < 0:
+        minimum = -minimum
+
+    # Make max positive if it is negative
+    if maximum < 0:
+        maximum = -maximum
+
+    # Get max
+    mymax = max(minimum, maximum)
+
+    # Return range symmetric around zero
+    return (-mymax, mymax)
 
 
 def create_plot(geodf: gpd.GeoDataFrame):
-    maximum = max(geodf["VAL_PERC"])
-    minimum = min(geodf["VAL_PERC"])
-    if minimum < 0 and maximum > 0:
-        abs_min = -minimum
-        if abs_min >= maximum:
-            maximum = abs_min
-        else:
-            minimum = -maximum
-
     fig = px.choropleth(
         geodf,
         geojson=geodf.geometry,
@@ -209,27 +200,12 @@ def create_plot(geodf: gpd.GeoDataFrame):
         },
         hover_name="CONTRACTOR_CONVENTION",
         color="VAL_PERC",
-        basemap_visible=False,
-        fitbounds="locations",
-        color_continuous_scale=[
-            [0, "#0000ff"],
-            [0.1, "#3333ff"],
-            [0.2, "#6666ff"],
-            [0.3, "#9999ff"],
-            [0.4, "#ccccff"],
-            [0.5, "#ffffff"],
-            [0.6, "#ffcccc"],
-            [0.7, "#ff9999"],
-            [0.8, "#ff6666"],
-            [0.9, "#ff3333"],
-            [1.0, "#ff0000"],
-        ],
-        range_color=(minimum, maximum),
+        labels={"color": "VAL DIFF %"},
     )
 
-    my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>index=%{location}<br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
+    # my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>index=%{location}<br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
+    my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
     fig.update_traces(hovertemplate=my_hovertemplate)
-    # fig.update_layout(legend_title_text="VAL DIFF %")
 
     return fig
 
@@ -270,23 +246,11 @@ def create_df_for_scen(
                 f"+{value}"
             )
 
-    # create an area (in square meters) column and a rank column in the scen geodf
-    # scen_geodf["area"] = scen_geodf.geometry.area
-    # scen_geodf["RANK"] = (
-    #     scen_geodf["area"].rank(method="first", ascending=False).astype(int)
-    # )
-
+    # Set index to rank so that plotting is done in the order of the area
     scen_geodf = scen_geodf.reset_index()
     scen_geodf = scen_geodf.set_index("RANK")
 
-    print(f"scen_1 = {scenario1}, scen_2 = {scenario2}")
-    print(scen_geodf)
-
     return scen_geodf
-
-
-################ DEBUG #############
-import plotly.graph_objects as go
 
 
 def create_fig_1(geodf: gpd.GeoDataFrame):
@@ -297,14 +261,11 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
             text=geodf["VAL_DIFF_SIGN"],
             mode="text",
             hoverinfo="none",
+            showlegend=False,
         )
     )
 
-    fig1.update_geos(fitbounds="locations", visible=False)
     return fig1
-
-
-####################################
 
 
 def run_test_app():
@@ -352,32 +313,21 @@ def run_test_app():
         Input("scenario_2", "value"),
     )
     def update_graph(scen1: str, scen2: str):
+        # Geo DataFrame to hold all necessary data
         scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
-        print("scen_geodf:")
+        print(f"scen_geodf for Scenario 1 = '{scen1}' & Scenario 2 = '{scen2}':")
         print(scen_geodf)
 
+        # Choropleth map to show % change of flow by agency
         fig = create_plot(scen_geodf)
 
-        # Get the figure for the state border
-        # figca = create_ca_plot()
-
-        # fig.add_trace(figca.data[0])
-
-        # Add inner figure to the state
-        # for i in range(len(fig.data)):
-        #    figca.add_trace(fig.data[i])
-        # figca.add_trace(fig.data[0])
-
-        ################ DEBUG #############
+        # Scatter graph to show positive & negative percentages
         fig1 = create_fig_1(scen_geodf)
-        fig1.update_layout(showlegend=False)
-        # figca.add_trace(fig1.data[0])
-        ####################################
 
-        trace1 = figca.data[0]
-        trace2 = fig.data[0]
+        trace2 = figca.data[0]
+        trace1 = fig.data[0]
         trace3 = fig1.data[0]
-        print("trace 2:\n", type(trace3))
+
         mycolor_scale = [
             [0, "#0000ff"],
             [0.1, "#3333ff"],
@@ -392,9 +342,8 @@ def run_test_app():
             [1.0, "#ff0000"],
         ]
 
-        minimum, maximum = get_min_max(scen_geodf)
-
         layout = go.Layout(
+            geo={"visible": False, "fitbounds": "locations"},
             autosize=False,
             height=1000,
             colorscale={"diverging": mycolor_scale},
@@ -403,14 +352,10 @@ def run_test_app():
                 "cmax": 50,
                 "cauto": False,
                 "autocolorscale": False,
+                "colorbar": {"title": {"text": "VAL DIFF %"}},
             },
         )
         final_fig = go.Figure(data=[trace1, trace2, trace3], layout=layout)
-        final_fig.update_geos(fitbounds="locations", visible=False)
-        # final_fig.update_layout(coloraxis_colorbar_y=0.9)
-
-        for trace in final_fig.data:
-            print(trace.hovertemplate)
 
         return final_fig
 
