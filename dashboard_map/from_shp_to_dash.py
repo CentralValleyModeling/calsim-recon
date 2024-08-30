@@ -254,17 +254,22 @@ def create_df_for_scen(
 
 
 def create_fig_1(geodf: gpd.GeoDataFrame):
+    hoverdf = geodf[
+        ["CONTRACTOR_CONVENTION", "AGENCYNAME", "VAL_DIFF", "VAL_PERC"]
+    ].copy()
+    my_hovertemplate = "<b>%{customdata[0]}<br>AGENCYNAME=%{customdata[1]}</b><br><br>VAL_DIFF=%{customdata[2]}<br>VAL_PERC=%{customdata[3]}<extra></extra>"
     fig1 = go.Figure(
         data=go.Scattergeo(
             lon=geodf.geometry.centroid.x,
             lat=geodf.geometry.centroid.y,
             text=geodf["VAL_DIFF_SIGN"],
             mode="text",
-            hoverinfo="none",
+            # hoverinfo="none",
             showlegend=False,
+            customdata=hoverdf,
+            hovertemplate=my_hovertemplate,
         )
     )
-
     return fig1
 
 
