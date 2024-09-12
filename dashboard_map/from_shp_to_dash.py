@@ -1,4 +1,6 @@
 import sys
+
+# from ..utils import query_data as qd
 import geopandas as gpd
 import plotly.express as px
 from dash import Dash, dcc, html, Input, Output, callback
@@ -8,7 +10,6 @@ import plotly.graph_objects as go
 
 sys.path.append(".")
 import utils.query_data as qd
-
 
 swp2convention = {
     "SWP_TA_AVEK": "SWC_AVEKWA",
@@ -103,8 +104,6 @@ def calc_mean():
     # Round
     combined_df["VAL"] = combined_df["VAL"].round()
     combined_df["VAL"] = combined_df["VAL"].astype(int)
-    print("df:")
-    print(combined_df)
 
     # Return the dataframe containing the average annual sum
     return combined_df
@@ -190,7 +189,6 @@ def create_plot(geodf: gpd.GeoDataFrame):
     fig = px.choropleth(
         geodf,
         geojson=geodf.geometry,
-        # locations=geodf["RANK"],
         locations=geodf.index,
         hover_data={
             "VAL_DIFF": True,
@@ -203,7 +201,6 @@ def create_plot(geodf: gpd.GeoDataFrame):
         labels={"color": "VAL DIFF %"},
     )
 
-    # my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>index=%{location}<br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
     my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
     fig.update_traces(hovertemplate=my_hovertemplate)
 
@@ -213,7 +210,6 @@ def create_plot(geodf: gpd.GeoDataFrame):
 def create_df_for_scen(
     data_df: pd.DataFrame, geodf: gpd.GeoDataFrame, scenario1: str, scenario2: str
 ):
-    # geodf = rank_to_geodf(geodf)
     scen_geodf = geodf.copy()
     scen_geodf = scen_geodf.set_index("CONTRACTOR_CONVENTION")
 
@@ -264,7 +260,6 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
             lat=geodf.geometry.centroid.y,
             text=geodf["VAL_DIFF_SIGN"],
             mode="text",
-            # hoverinfo="none",
             showlegend=False,
             customdata=hoverdf,
             hovertemplate=my_hovertemplate,
@@ -276,15 +271,10 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
 def run_test_app():
     app = Dash(__name__)
     data_df = calc_mean()
-    print("data_df:")
-    print(data_df)
 
     scenario_list = data_df["Scenario"].unique()
 
     geodf = load_shp()
-    print("geodf:")
-    print(geodf)
-    print("geodf.crs:", geodf.crs)
 
     # Get the figure for the state border
     figca = create_ca_plot()
@@ -320,8 +310,6 @@ def run_test_app():
     def update_graph(scen1: str, scen2: str):
         # Geo DataFrame to hold all necessary data
         scen_geodf = create_df_for_scen(data_df, geodf, scen1, scen2)
-        print(f"scen_geodf for Scenario 1 = '{scen1}' & Scenario 2 = '{scen2}':")
-        print(scen_geodf)
 
         # Choropleth map to show % change of flow by agency
         fig = create_plot(scen_geodf)
