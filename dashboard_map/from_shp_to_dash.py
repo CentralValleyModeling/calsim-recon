@@ -10,6 +10,8 @@ import plotly.graph_objects as go
 
 sys.path.append(".")
 import utils.query_data as qd
+from pages.styles import PLOT_COLORS
+from utils.tools import monthfilter, month_list
 
 swp2convention = {
     "SWP_TA_AVEK": "SWC_AVEKWA",
@@ -62,6 +64,22 @@ agencyname2convention = {
     "Ventura County Watershed Protection District": "SWC_VCWPD",
 }
 
+name2tablename = {
+    "Lake Shasta": "Shasta Storage",
+    "Trinity Lake": "Trinity Storage",
+    "Folsom Lake": "Folsom Storage",
+    "Lake Oroville": "Oroville Storage",
+    "San Luis Reservoir": "San Luis Storage",
+}
+
+tablename2calsimname = {
+    "Shasta Storage": "S_SHSTA",
+    "Trinity Storage": "S_TRNTY",
+    "Folsom Storage": "S_FOLSM",
+    "Oroville Storage": "S_OROVL",
+    "San Luis Storage": "S_SLUIS_SWP",  # this is for SWP, not CVP
+}
+
 
 def calc_mean():
     combined_df = pd.DataFrame(
@@ -105,6 +123,11 @@ def calc_mean():
     combined_df["VAL"] = combined_df["VAL"].round()
     combined_df["VAL"] = combined_df["VAL"].astype(int)
 
+    # add bpart
+    combined_df["BPART"] = "TBD"
+    for key, val in swp2convention.items():
+        combined_df.loc[combined_df["CONTRACTOR_CONVENTION"] == val, "BPART"] = key
+
     # Return the dataframe containing the average annual sum
     return combined_df
 
@@ -147,6 +170,29 @@ def load_shp() -> gpd.GeoDataFrame:
     return geodf
 
 
+def load_shp_reservoir() -> gpd.GeoDataFrame:
+    geodf = gpd.read_file("dashboard_map/calsim_lakes_for_visualization.shp")
+    geodf.to_crs(pyproj.CRS.from_epsg(4326), inplace=True)
+
+    # filter out uneccesary reservoirs
+    geodf = geodf[geodf["NAME"].isin(name2tablename)]
+
+    # add columns for table name and calsim name
+    geodf["TABLENAME"] = "TBD"
+    for key, val in name2tablename.items():
+        geodf.loc[geodf["NAME"] == key, "TABLENAME"] = val
+
+    geodf["CALSIMNAME"] = "TBD"
+    for key, val in tablename2calsimname.items():
+        geodf.loc[geodf["TABLENAME"] == key, "CALSIMNAME"] = val
+
+    # set index
+    geodf = geodf.reset_index()
+    geodf = geodf.set_index("DFGWATERID")
+
+    return geodf
+
+
 def create_ca_plot():
     figca = px.choropleth(
         locations=["CA"],
@@ -155,12 +201,22 @@ def create_ca_plot():
         color_discrete_sequence=["rgba(255,0,0,0.0)"],
         basemap_visible=False,
         fitbounds="locations",
-        height=800,
+        height=1200,
         color_continuous_scale="Bluered",
     )
 
-    figca.update_layout(showlegend=False)
+    figca.update_layout(
+        showlegend=False,
+        autosize=False,
+        margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
+    )
     figca.update_traces(hoverinfo="skip", hovertemplate=None)
+    # figca.update_geos(
+    #     center_lon=-119.3,
+    #     center_lat=37.25,
+    #     lataxis_range=[32.3, 42.2],
+    #     lonaxis_range=[-124.7, -113.9],
+    # )
 
     return figca
 
@@ -186,22 +242,40 @@ def get_min_max(geodf: gpd.GeoDataFrame):
 
 
 def create_plot(geodf: gpd.GeoDataFrame):
+    print("geodf = \n", geodf)
     fig = px.choropleth(
         geodf,
         geojson=geodf.geometry,
         locations=geodf.index,
-        hover_data={
-            "VAL_DIFF": True,
-            "VAL_PERC": True,
-            "AGENCYNAME": True,
-            "OBJECTID": False,
-        },
-        hover_name="CONTRACTOR_CONVENTION",
+        custom_data=[
+            "BPART",
+            "VAL_DIFF",
+            "VAL_PERC",
+            "AGENCYNAME",
+            "CONTRACTOR_CONVENTION",
+        ],
         color="VAL_PERC",
         labels={"color": "VAL DIFF %"},
     )
 
-    my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
+    # my_hovertemplate = "<b>%{hovertext}<br>AGENCYNAME=%{customdata[2]}</b><br><br>VAL_DIFF=%{customdata[0]}<br>VAL_PERC=%{z}<extra></extra>"
+    my_hovertemplate = "<b>%{customdata[4]}<br>AGENCYNAME=%{customdata[3]}</b><br><br>VAL_DIFF=%{customdata[1]}<br>VAL_PERC=%{z}<extra></extra>"
+    fig.update_traces(hovertemplate=my_hovertemplate)
+
+    return fig
+
+
+def create_reservoir_plot(geodf: gpd.GeoDataFrame):
+    fig = px.choropleth(
+        geodf,
+        geojson=geodf.geometry,
+        locations=geodf.index,
+        custom_data=["CALSIMNAME", "TABLENAME"],
+    )
+
+    fig.update_geos(fitbounds="locations", visible=False)
+
+    my_hovertemplate = "<b>%{customdata[1]}</b><br>%{customdata[0]}<extra></extra>"
     fig.update_traces(hovertemplate=my_hovertemplate)
 
     return fig
@@ -225,6 +299,7 @@ def create_df_for_scen(
     scen_geodf["VAL_1"] = data_df_1["VAL"]
     scen_geodf["VAL_2"] = data_df_2["VAL"]
     scen_geodf["VAL_DIFF"] = scen_geodf["VAL_1"] - scen_geodf["VAL_2"]
+    scen_geodf["BPART"] = data_df_1["BPART"]
 
     # Create a column in scen_geodf for val_diff percentages
     scen_geodf["VAL_PERC"] = (
@@ -251,14 +326,15 @@ def create_df_for_scen(
 
 def create_fig_1(geodf: gpd.GeoDataFrame):
     hoverdf = geodf[
-        ["CONTRACTOR_CONVENTION", "AGENCYNAME", "VAL_DIFF", "VAL_PERC"]
+        ["BPART", "CONTRACTOR_CONVENTION", "AGENCYNAME", "VAL_DIFF", "VAL_PERC"]
     ].copy()
-    my_hovertemplate = "<b>%{customdata[0]}<br>AGENCYNAME=%{customdata[1]}</b><br><br>VAL_DIFF=%{customdata[2]}<br>VAL_PERC=%{customdata[3]}<extra></extra>"
+    my_hovertemplate = "<b>%{customdata[1]}<br>AGENCYNAME=%{customdata[2]}</b><br><br>VAL_DIFF=%{customdata[3]}<br>VAL_PERC=%{customdata[4]}<extra></extra>"
     fig1 = go.Figure(
         data=go.Scattergeo(
             lon=geodf.geometry.centroid.x,
             lat=geodf.geometry.centroid.y,
             text=geodf["VAL_DIFF_SIGN"],
+            # text=geodf["AGENCYNAME"],
             mode="text",
             showlegend=False,
             customdata=hoverdf,
@@ -268,6 +344,61 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
     return fig1
 
 
+def update_monthly(b_part, slider_yr_range):
+    startyr = slider_yr_range[0]
+    endyr = slider_yr_range[1]
+    df0 = qd.df_dv.loc[
+        # qd.df_dv["WYT_SAC_"].isin(convert_wyt_nums(wytchecklist))
+        (qd.df_dv["iwy"] >= startyr)
+        & (qd.df_dv["iwy"] <= endyr)
+    ]
+    df1 = round(df0.groupby(["Scenario", "iwm"]).mean())
+    df1 = df1.reindex(qd.scen_aliases, level="Scenario")
+    fig = px.line(
+        df1,
+        x=df1.index.get_level_values(1),
+        y=b_part,
+        color=df1.index.get_level_values(0),
+        labels={"color": "Scenario"},
+        color_discrete_sequence=PLOT_COLORS,
+    )
+    fig.update_layout(
+        plot_bgcolor="white",
+        xaxis=dict(
+            tickmode="array",
+            tickvals=monthfilter,
+            ticktext=month_list,
+            showgrid=True,
+            gridcolor="LightGray",
+        ),
+        yaxis=dict(
+            showgrid=True,
+            gridcolor="LightGray",
+        ),
+        yaxis_tickformat=",d",
+        xaxis_title="Month",
+    )
+
+    return fig
+
+
+def update_timeseries(b_part):
+    fig = px.line(
+        qd.df_dv,
+        x=qd.df_dv.index,
+        y=b_part,
+        color="Scenario",
+        color_discrete_sequence=PLOT_COLORS,
+    )
+    fig.update_layout(
+        plot_bgcolor="white",
+        xaxis=dict(gridcolor="LightGray"),
+        yaxis=dict(gridcolor="LightGray"),
+    )
+
+    return fig
+
+
 def run_test_app():
     app = Dash(__name__)
     data_df = calc_mean()
@@ -275,6 +406,11 @@ def run_test_app():
     scenario_list = data_df["Scenario"].unique()
 
     geodf = load_shp()
+
+    reservoir_geodf = load_shp_reservoir()
+
+    print("!!!!!!!!!!!!!!!!!!!!!!! ")
+    print(reservoir_geodf)
 
     # Get the figure for the state border
     figca = create_ca_plot()
@@ -296,11 +432,24 @@ def run_test_app():
                 ],
                 style={"width": "48%", "float": "right"},
             ),
+            html.Div("hello", id="reservoir-click"),
             dcc.Graph(
                 id="my_id",
             ),
         ]
     )
+
+    @callback(
+        Output("reservoir-click", "children"),
+        Input("my_id", "clickData"),
+    )
+    def hande_reservoir_click(clickData):
+        # if there is clickData
+
+        # else return empty string
+
+        # if clickData has a point,
+        return f"<pre>{clickData['points']}</pre>"
 
     @callback(
         Output("my_id", "figure"),
@@ -317,9 +466,13 @@ def run_test_app():
         # Scatter graph to show positive & negative percentages
         fig1 = create_fig_1(scen_geodf)
 
+        # choropleth map for reservoirs
+        fig_r = create_reservoir_plot(reservoir_geodf)
+
         trace2 = figca.data[0]
         trace1 = fig.data[0]
         trace3 = fig1.data[0]
+        trace4 = fig_r.data[0]
 
         mycolor_scale = [
             [0, "#0000ff"],
@@ -348,7 +501,7 @@ def run_test_app():
                 "colorbar": {"title": {"text": "VAL DIFF %"}},
             },
         )
-        final_fig = go.Figure(data=[trace1, trace2, trace3], layout=layout)
+        final_fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
 
         return final_fig
 

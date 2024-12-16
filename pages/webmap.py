@@ -1,6 +1,8 @@
 from dash import Dash, dcc, html, Input, Output, callback, register_page
 import plotly.graph_objects as go
 import dashboard_map.from_shp_to_dash as api
+import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 
 # get the average annual sum of each delivery/agencyname
 data_df = api.calc_mean()
@@ -11,9 +13,17 @@ scenario_list = data_df["Scenario"].unique()
 # get the geodata of the agencies
 geodf = api.load_shp()
 
+# reservoir geodf
+reservoir_geodf = api.load_shp_reservoir()
+
 # Get the figure for the state border
 figca = api.create_ca_plot()
 
+# choropleth map for reservoirs
+fig_r = api.create_reservoir_plot(reservoir_geodf)
+
+# debug
+fig_monthly = api.update_monthly("S_OROVL", (1922, 2021))
 
 # Register the page webmap on the dashboard menu
 register_page(
@@ -26,27 +36,76 @@ register_page(
 
 # layout function
 def layout():
-    layout = html.Div(
+    # layout = html.Div(
+    #     children=[
+    #         html.H1("State Water Project Contractor Deliveries"),
+    #         html.Div(
+    #             [
+    #                 html.Label("Scenario 1:", htmlFor=("scenario_1")),
+    #                 dcc.Dropdown(scenario_list, scenario_list[0], id="scenario_1"),
+    #             ],
+    #             style={"width": "48%", "display": "inline-block"},
+    #         ),
+    #         html.Div(
+    #             [
+    #                 html.Label("Scenario 2:", htmlFor=("scenario_2")),
+    #                 dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2"),
+    #             ],
+    #             style={"width": "48%", "float": "right"},
+    #         ),
+    #         dcc.Graph(
+    #             id="my_id",
+    #         ),
+    #     ]
+    # )
+    layout = dbc.Container(
+        class_name="my-3",
         children=[
-            html.H1("State Water Project Contractor Deliveries"),
-            html.Div(
+            dbc.Row(
                 [
-                    html.Label("Scenario 1:", htmlFor=("scenario_1")),
-                    dcc.Dropdown(scenario_list, scenario_list[0], id="scenario_1"),
-                ],
-                style={"width": "48%", "display": "inline-block"},
+                    html.H1("State Water Project Contractor Deliveries"),
+                ]
             ),
-            html.Div(
+            dbc.Row(
                 [
-                    html.Label("Scenario 2:", htmlFor=("scenario_2")),
-                    dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2"),
-                ],
-                style={"width": "48%", "float": "right"},
+                    dbc.Col(
+                        [
+                            html.Div(
+                                [
+                                    html.Label("Scenario 1:", htmlFor=("scenario_1")),
+                                    dcc.Dropdown(
+                                        scenario_list, scenario_list[0], id="scenario_1"
+                                    ),
+                                ],
+                                # style={"width": "48%", "display": "inline-block"},
+                            ),
+                            html.Div(
+                                [
+                                    html.Label("Scenario 2:", htmlFor=("scenario_2")),
+                                    dcc.Dropdown(
+                                        scenario_list, scenario_list[1], id="scenario_2"
+                                    ),
+                                ],
+                                # style={"width": "48%", "float": "right"},
+                            ),
+                            dcc.Graph(
+                                id="my_id",
+                            ),
+                        ],
+                        width=6,
+                    ),
+                    dbc.Col(
+                        [
+                            html.H2("Monthly Plot"),
+                            dcc.Graph(id="reservoir_click"),
+                            html.H2("Timeseries Plot"),
+                            dcc.Graph(id="timeseries_click"),
+                        ],
+                        width=6,
+                    ),
+                ]
             ),
-            dcc.Graph(
-                id="my_id",
-            ),
-        ]
+        ],
     )
 
     return layout
@@ -70,6 +129,7 @@ def update_graph(scen1: str, scen2: str):
     trace2 = figca.data[0]
     trace1 = fig.data[0]
     trace3 = fig1.data[0]
+    trace4 = fig_r.data[0]
 
     mycolor_scale = [
         [0, "#0000ff"],
@@ -98,6 +158,76 @@ def update_graph(scen1: str, scen2: str):
             "colorbar": {"title": {"text": "VAL DIFF %"}},
         },
     )
-    final_fig = go.Figure(data=[trace1, trace2, trace3], layout=layout)
+    final_fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
+
+    final_fig.update_layout(
+        showlegend=False,
+        autosize=False,
+        margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
+    )
+
+    # final_fig.update_geos(
+    #     center_lon=37.25,
+    #     center_lat=-119.3,
+    #     lataxis_range=[32.3, 42.2],
+    #     lonaxis_range=[-124.7, -113.9],
+    # )
+
+    final_fig.update_geos(
+        center_lon=-119.3,
+        center_lat=37.25,
+        lataxis_range=[32.3, 42.2],
+        lonaxis_range=[-124.7, -113.9],
+    )
 
     return final_fig
+
+
+@callback(
+    Output("reservoir_click", "figure"),
+    Input("my_id", "clickData"),
+)
+def hande_reservoir_click(clickData):
+    if clickData:
+        print("1. clickData = ", clickData)
+        points = clickData["points"]
+        if points:
+            custom_data = points[0]["customdata"]
+            if custom_data and len(custom_data) > 1:
+                bpart = custom_data[0]
+                if (
+                    bpart in api.tablename2calsimname.values()
+                    or bpart in api.swp2convention
+                ):
+                    fig1 = api.update_monthly(bpart, [1922, 2021])
+                    fig2 = api.update_timeseries(bpart)
+                    fig = go.Figure(data=[fig1.data[0], fig2.data[0]])
+                    return fig1
+
+    # If the code reaches at this point, then there is no figure to update.
+    print("No ClickData")
+    raise PreventUpdate
+
+
+@callback(
+    Output("timeseries_click", "figure"),
+    Input("my_id", "clickData"),
+)
+def hande_timeseries_click(clickData):
+    if clickData:
+        print("1. clickData = ", clickData)
+        points = clickData["points"]
+        if points:
+            custom_data = points[0]["customdata"]
+            if custom_data and len(custom_data) > 1:
+                bpart = custom_data[0]
+                if (
+                    bpart in api.tablename2calsimname.values()
+                    or bpart in api.swp2convention
+                ):
+                    fig2 = api.update_timeseries(bpart)
+                    return fig2
+
+    # If the code reaches at this point, then there is no figure to update.
+    print("No ClickData")
+    raise PreventUpdate
