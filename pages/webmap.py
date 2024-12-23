@@ -160,24 +160,38 @@ def update_graph(scen1: str, scen2: str):
     )
     final_fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
 
-    final_fig.update_layout(
-        showlegend=False,
-        autosize=False,
-        margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
-    )
-
-    # final_fig.update_geos(
-    #     center_lon=37.25,
-    #     center_lat=-119.3,
-    #     lataxis_range=[32.3, 42.2],
-    #     lonaxis_range=[-124.7, -113.9],
+    # final_fig.update_layout(
+    #     autosize=False,
+    #     margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
+    #     height=600,
+    #     coloraxis_colorbar=dict(xref="paper", xanchor="right", x=1.2),
+    #     xaxis=dict(range=[-120, -116]),
+    #     yaxis=dict(range=[32.3, 35]),
+    #     # aspectratio=go.layout.scene.Aspectratio(x=2, y=2, z=2),
     # )
 
+    lat_min = 34.3
+    lat_max = 40.2
+    lat_center = (lat_min + lat_max) / 2
+
     final_fig.update_geos(
+        # center_lon=-119.3,
+        # center_lat=37.25,
+        # lataxis_range=[32.3, 42.2],
+        # lonaxis_range=[-124.7, -113.9],
         center_lon=-119.3,
-        center_lat=37.25,
-        lataxis_range=[32.3, 42.2],
+        center_lat=lat_center,
+        lataxis_range=[lat_min, lat_max],
         lonaxis_range=[-124.7, -113.9],
+        projection_scale=1,
+        fitbounds=False,
+    )
+
+    final_fig.update_layout(
+        autosize=False,
+        margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
+        height=600,
+        coloraxis_colorbar=dict(xref="paper", xanchor="right", x=1.2),
     )
 
     return final_fig
