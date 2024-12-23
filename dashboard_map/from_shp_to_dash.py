@@ -80,6 +80,33 @@ tablename2calsimname = {
     "San Luis Storage": "S_SLUIS_SWP",  # this is for SWP, not CVP
 }
 
+swp2description = {
+    "SWP_TA_AVEK": "Antelope Valley-East Kern WA",
+    "SWP_TA_CVWD": "Coachella Valley WD",
+    "SWP_TA_CLA": "Crestline-Line Arrowhead WA",
+    "SWP_TA_DESERT": "Desert WA",
+    "SWP_TA_DUDLEY": "Dudley Ridge WD",
+    "SWP_TA_EMPIRE": "Empire West Side ID",
+    "SWP_TA_KERNMI": "Kern County WA (MI)",
+    "SWP_TA_KERNAG": "Kern County WA (Ag)",
+    "SWP_TA_KINGS": "County of Kings",
+    "SWP_TA_LCID": "Littlerock Creek ID",
+    "SWP_TA_MWD": "Metropolitan WDSC",
+    "SWP_TA_MWA": "Mojave WA",
+    "SWP_TA_PWD": "Palmdale WD",
+    "SWP_TA_SBV": "San Bernadino Valley MWD",
+    "SWP_TA_SGV": "San Gabriel Valley MWD",
+    "SWP_TA_SGP": "San Gorgonio Pass WA",
+    "SWP_TA_SLO": "San Luis Obispo County FC&WCD",
+    "SWP_TA_SB": "Santa Barbara County FC&WCD",
+    "SWP_TA_SCV": "Santa Clara Valley WD",
+    "SWP_TA_CLWA1": "Santa Clarita WA (San Joaquin)",
+    "SWP_TA_CLWA2": "Santa Clarita WA (South Coast)",
+    "SWP_TA_TULARE": "Tulare Lake Basin WSD",
+    "SWP_TA_VC": "Ventura County FCD",
+    "SWP_TA_ACFC": "Alameda County FC&WCD, Zone 7",
+}
+
 
 def calc_mean():
     combined_df = pd.DataFrame(
@@ -125,8 +152,14 @@ def calc_mean():
 
     # add bpart
     combined_df["BPART"] = "TBD"
+    combined_df["BPART_SUFFIX"] = "TBD"
     for key, val in swp2convention.items():
         combined_df.loc[combined_df["CONTRACTOR_CONVENTION"] == val, "BPART"] = key
+
+        # Add suffix of bpart for display
+        combined_df.loc[combined_df["CONTRACTOR_CONVENTION"] == val, "BPART_SUFFIX"] = (
+            key[7:]
+        )  # len("SWP_TA_") = 7
 
     # Return the dataframe containing the average annual sum
     return combined_df
@@ -200,8 +233,8 @@ def create_ca_plot():
         scope="usa",
         color_discrete_sequence=["rgba(255,0,0,0.0)"],
         basemap_visible=False,
-        fitbounds="locations",
-        height=1200,
+        # fitbounds="locations",
+        height=800,
         color_continuous_scale="Bluered",
     )
 
@@ -273,7 +306,8 @@ def create_reservoir_plot(geodf: gpd.GeoDataFrame):
         custom_data=["CALSIMNAME", "TABLENAME"],
     )
 
-    fig.update_geos(fitbounds="locations", visible=False)
+    # fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_geos(visible=False)
 
     my_hovertemplate = "<b>%{customdata[1]}</b><br>%{customdata[0]}<extra></extra>"
     fig.update_traces(hovertemplate=my_hovertemplate)
@@ -300,6 +334,7 @@ def create_df_for_scen(
     scen_geodf["VAL_2"] = data_df_2["VAL"]
     scen_geodf["VAL_DIFF"] = scen_geodf["VAL_1"] - scen_geodf["VAL_2"]
     scen_geodf["BPART"] = data_df_1["BPART"]
+    scen_geodf["BPART_SUFFIX"] = data_df_1["BPART_SUFFIX"]
 
     # Create a column in scen_geodf for val_diff percentages
     scen_geodf["VAL_PERC"] = (
@@ -333,8 +368,9 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
         data=go.Scattergeo(
             lon=geodf.geometry.centroid.x,
             lat=geodf.geometry.centroid.y,
-            text=geodf["VAL_DIFF_SIGN"],
-            # text=geodf["AGENCYNAME"],
+            text=geodf["VAL_DIFF_SIGN"].astype(str) + "<br>" + geodf["BPART_SUFFIX"],
+            textfont_size=8,
+            # text=geodf["VAL_DIFF_SIGN"],
             mode="text",
             showlegend=False,
             customdata=hoverdf,
@@ -489,7 +525,8 @@ def run_test_app():
         ]
 
         layout = go.Layout(
-            geo={"visible": False, "fitbounds": "locations"},
+            # geo={"visible": False, "fitbounds": "locations"},
+            geo={"visible": False},
             autosize=False,
             height=1000,
             colorscale={"diverging": mycolor_scale},
