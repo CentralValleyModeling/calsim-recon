@@ -36,28 +36,6 @@ register_page(
 
 # layout function
 def layout():
-    # layout = html.Div(
-    #     children=[
-    #         html.H1("State Water Project Contractor Deliveries"),
-    #         html.Div(
-    #             [
-    #                 html.Label("Scenario 1:", htmlFor=("scenario_1")),
-    #                 dcc.Dropdown(scenario_list, scenario_list[0], id="scenario_1"),
-    #             ],
-    #             style={"width": "48%", "display": "inline-block"},
-    #         ),
-    #         html.Div(
-    #             [
-    #                 html.Label("Scenario 2:", htmlFor=("scenario_2")),
-    #                 dcc.Dropdown(scenario_list, scenario_list[1], id="scenario_2"),
-    #             ],
-    #             style={"width": "48%", "float": "right"},
-    #         ),
-    #         dcc.Graph(
-    #             id="my_id",
-    #         ),
-    #     ]
-    # )
     layout = dbc.Container(
         class_name="my-3",
         children=[
@@ -88,6 +66,17 @@ def layout():
                                 ],
                                 # style={"width": "48%", "float": "right"},
                             ),
+                            html.Div(
+                                children=[
+                                    html.Br(),
+                                    html.Label("Map Filter"),
+                                    dcc.Checklist(
+                                        id='my_filter',
+                                        options=['Reservoirs', 'Contractors'],
+                                        value=['Reservoirs', 'Contractors'],
+                                    )
+                                ]
+                            ),
                             dcc.Graph(
                                 id="my_id",
                             ),
@@ -115,21 +104,36 @@ def layout():
     Output("my_id", "figure"),
     Input("scenario_1", "value"),
     Input("scenario_2", "value"),
+    Input("my_filter", "value")
 )
-def update_graph(scen1: str, scen2: str):
+def update_graph(scen1: str, scen2: str, selected_values: list):
+
+    # add variables for selected filter
+    show_contractors = 'Contractors' in selected_values
+    show_reservoirs = 'Reservoirs' in selected_values
+
     # Geo DataFrame to hold all necessary data
     scen_geodf = api.create_df_for_scen(data_df, geodf, scen1, scen2)
 
-    # Choropleth map to show % change of flow by agency
-    fig = api.create_plot(scen_geodf)
-
-    # Scatter graph to show positive & negative percentages
-    fig1 = api.create_fig_1(scen_geodf)
-
+    # List to hold the all trace data
     trace2 = figca.data[0]
-    trace1 = fig.data[0]
-    trace3 = fig1.data[0]
-    trace4 = fig_r.data[0]
+    graph_data = [trace2]
+
+    if show_contractors:
+        # Choropleth map to show % change of flow by agency
+        fig = api.create_plot(scen_geodf)
+
+        # Scatter graph to show positive & negative percentages
+        fig1 = api.create_fig_1(scen_geodf)
+
+        trace1 = fig.data[0]
+        trace3 = fig1.data[0]
+        graph_data.append(trace1)
+        graph_data.append(trace3)
+    
+    if show_reservoirs:
+        trace4 = fig_r.data[0]
+        graph_data.append(trace4)
 
     mycolor_scale = [
         [0, "#0000ff"],
@@ -158,27 +162,14 @@ def update_graph(scen1: str, scen2: str):
             "colorbar": {"title": {"text": "VAL DIFF %"}},
         },
     )
-    final_fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
-
-    # final_fig.update_layout(
-    #     autosize=False,
-    #     margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
-    #     height=600,
-    #     coloraxis_colorbar=dict(xref="paper", xanchor="right", x=1.2),
-    #     xaxis=dict(range=[-120, -116]),
-    #     yaxis=dict(range=[32.3, 35]),
-    #     # aspectratio=go.layout.scene.Aspectratio(x=2, y=2, z=2),
-    # )
+    # final_fig = go.Figure(data=[trace1, trace2, trace3, trace4], layout=layout)
+    final_fig = go.Figure(graph_data, layout=layout)
 
     lat_min = 34.3
     lat_max = 40.2
     lat_center = (lat_min + lat_max) / 2
 
     final_fig.update_geos(
-        # center_lon=-119.3,
-        # center_lat=37.25,
-        # lataxis_range=[32.3, 42.2],
-        # lonaxis_range=[-124.7, -113.9],
         center_lon=-119.3,
         center_lat=lat_center,
         lataxis_range=[lat_min, lat_max],
