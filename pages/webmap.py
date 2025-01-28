@@ -13,8 +13,23 @@ scenario_list = data_df["Scenario"].unique()
 # get the geodata of the agencies
 geodf = api.load_shp()
 
+print(geodf['AREA'])
+      
 # reservoir geodf
 reservoir_geodf = api.load_shp_reservoir()
+
+# export geodf
+export_geodf = api.load_shp_export()
+print("EXPORT GEODF:")
+print("columns = ", export_geodf.columns)
+print("data = \n", export_geodf.head())
+print("arc descrip column: /n", export_geodf["Comments"])
+
+# choropleth map for exports
+fig_exp = api.create_export_plot(export_geodf)
+
+# centroid map for exports
+fig_exp_centroid = api.create_export_centroid(export_geodf)
 
 # Get the figure for the state border
 figca = api.create_ca_plot()
@@ -72,8 +87,8 @@ def layout():
                                     html.Label("Map Filter"),
                                     dcc.Checklist(
                                         id='my_filter',
-                                        options=['Reservoirs', 'Contractors'],
-                                        value=['Reservoirs', 'Contractors'],
+                                        options=['Reservoirs', 'Contractors', 'Exports'],
+                                        value=['Reservoirs', 'Contractors', 'Exports'],
                                     )
                                 ]
                             ),
@@ -89,6 +104,8 @@ def layout():
                             dcc.Graph(id="reservoir_click"),
                             html.H2("Timeseries Plot"),
                             dcc.Graph(id="timeseries_click"),
+                            html.H3("Annual Plot"),
+                            dcc.Graph(id="export_click"),
                         ],
                         width=6,
                     ),
@@ -111,6 +128,7 @@ def update_graph(scen1: str, scen2: str, selected_values: list):
     # add variables for selected filter
     show_contractors = 'Contractors' in selected_values
     show_reservoirs = 'Reservoirs' in selected_values
+    show_exports = 'Exports' in selected_values
 
     # Geo DataFrame to hold all necessary data
     scen_geodf = api.create_df_for_scen(data_df, geodf, scen1, scen2)
@@ -134,6 +152,12 @@ def update_graph(scen1: str, scen2: str, selected_values: list):
     if show_reservoirs:
         trace4 = fig_r.data[0]
         graph_data.append(trace4)
+    
+    if show_exports:
+        trace5 = fig_exp.data[0]
+        trace6 = fig_exp_centroid.data[0]
+        graph_data.append(trace5)
+        graph_data.append(trace6)
 
     mycolor_scale = [
         [0, "#0000ff"],
@@ -183,16 +207,40 @@ def update_graph(scen1: str, scen2: str, selected_values: list):
         margin=dict(l=0, r=0, b=0, t=0, pad=0, autoexpand=True),
         height=600,
         coloraxis_colorbar=dict(xref="paper", xanchor="right", x=1.2),
+        uniformtext_minsize=8, 
+        uniformtext_mode='hide'
     )
 
     return final_fig
+
+@callback(
+    Output("export_click", "figure"),
+    Input("my_id", "clickData"),
+)
+def handle_export_click(clickData):
+    if clickData:
+        points = clickData["points"]
+        if points:
+            custom_data = points[0]["customdata"]
+            if custom_data and len(custom_data) > 1:
+                bpart = custom_data[0]
+                if (bpart in api.arc_id2bpart.values()):
+                    fig1 = api.update_bar_annual(bpart, [1922, 2021])
+                    fig2 = api.update_timeseries(bpart)
+                    fig3 = api.update_monthly(bpart, [1922, 2021])
+                    fig = go.Figure(data=[fig1.data[0], fig2.data[0], fig3.data[0]])
+                    return fig
+
+    # If the code reaches at this point, then there is no figure to update.
+    print("No ClickData")
+    raise PreventUpdate
 
 
 @callback(
     Output("reservoir_click", "figure"),
     Input("my_id", "clickData"),
 )
-def hande_reservoir_click(clickData):
+def handle_reservoir_click(clickData):
     if clickData:
         print("1. clickData = ", clickData)
         points = clickData["points"]
@@ -207,10 +255,10 @@ def hande_reservoir_click(clickData):
                     fig1 = api.update_monthly(bpart, [1922, 2021])
                     fig2 = api.update_timeseries(bpart)
                     fig = go.Figure(data=[fig1.data[0], fig2.data[0]])
-                    return fig1
+                    return fig
 
     # If the code reaches at this point, then there is no figure to update.
-    print("No ClickData")
+    print("8. No ClickData")
     raise PreventUpdate
 
 
@@ -218,9 +266,9 @@ def hande_reservoir_click(clickData):
     Output("timeseries_click", "figure"),
     Input("my_id", "clickData"),
 )
-def hande_timeseries_click(clickData):
+def handle_timeseries_click(clickData):
     if clickData:
-        print("1. clickData = ", clickData)
+        # print("1. clickData = ", clickData)
         points = clickData["points"]
         if points:
             custom_data = points[0]["customdata"]
@@ -234,5 +282,5 @@ def hande_timeseries_click(clickData):
                     return fig2
 
     # If the code reaches at this point, then there is no figure to update.
-    print("No ClickData")
+    print("9. No ClickData")
     raise PreventUpdate

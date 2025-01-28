@@ -11,7 +11,7 @@ import plotly.graph_objects as go
 sys.path.append(".")
 import utils.query_data as qd
 from pages.styles import PLOT_COLORS
-from utils.tools import monthfilter, month_list
+from utils.tools import monthfilter, month_list, cfs_taf
 
 swp2convention = {
     "SWP_TA_AVEK": "SWC_AVEKWA",
@@ -200,6 +200,14 @@ def load_shp() -> gpd.GeoDataFrame:
     # Add rank column based on area
     geodf["RANK"] = geodf["AREA"].rank(method="first").astype(int)
 
+    # Add a column for the contractors that need text arrow annotation
+    # geodf["ARROW"] = False
+    # for area in geodf["AREA"]:
+    #     if area <= 0.360672:
+    #         geodf.loc[geodf["AREA"] == area, "ARROW"] = True
+
+
+
     return geodf
 
 
@@ -222,6 +230,35 @@ def load_shp_reservoir() -> gpd.GeoDataFrame:
     # set index
     geodf = geodf.reset_index()
     geodf = geodf.set_index("DFGWATERID")
+
+    return geodf
+
+arc_id2bpart = {
+    "C_CAA003": "C_CAA003",
+    "C_DMC003": "C_DMC000"
+}
+
+arc_id2alias = {
+    "C_CAA003": "Total Banks Exports",
+    "C_DMC003": "Total Jones Exports"
+}
+
+def load_shp_export() -> gpd.GeoDataFrame:
+    geodf = gpd.read_file("dashboard_map/main_exports.shp")
+    geodf.to_crs(pyproj.CRS.from_epsg(4326), inplace=True)
+
+    # filter for ARC_ID = C_CAA003, C_DMC000
+    geodf = geodf[geodf["Arc_ID"].isin(["C_CAA003", "C_DMC003"])]
+
+    # bpart column
+    geodf["BPART"] = "TBD"
+    for key, val in arc_id2bpart.items():
+        geodf.loc[geodf["Arc_ID"] == key, "BPART"] = val
+
+     # alias column
+    geodf["ALIAS"] = "TBD"
+    for key, val in arc_id2alias.items():
+        geodf.loc[geodf["Arc_ID"] == key, "ALIAS"] = val
 
     return geodf
 
@@ -314,6 +351,46 @@ def create_reservoir_plot(geodf: gpd.GeoDataFrame):
 
     return fig
 
+def create_export_plot(geodf: gpd.GeoDataFrame):
+    fig = px.choropleth(
+        geodf,
+        geojson=geodf.geometry,
+        locations=geodf.index,
+        custom_data=["BPART", "ALIAS"],
+    )
+
+    # fig.update_geos(fitbounds="locations", visible=False)
+    fig.update_geos(visible=False)
+
+    my_hovertemplate = "<b>%{customdata[1]}</b><br>%{customdata[0]}<extra></extra>"
+    fig.update_traces(hovertemplate=my_hovertemplate)
+
+    return fig
+
+def create_export_centroid(geodf: gpd.GeoDataFrame):
+    hoverdf = geodf[
+        ["BPART", "ALIAS"]
+    ].copy()
+    my_hovertemplate = "<b>%{customdata[1]}</b><br>%{customdata[0]}<extra></extra>"
+    fig1 = go.Figure(
+        data=go.Scattergeo(
+            lon=geodf.geometry.centroid.x,
+            lat=geodf.geometry.centroid.y,
+            text=geodf["BPART"].astype(str) + "<br>" + geodf["ALIAS"],
+            textfont_size=10,
+            mode="markers",
+            showlegend=False,
+            customdata=hoverdf,
+            hovertemplate=my_hovertemplate,
+            marker=dict(size=5, color="red", symbol="circle")
+        )
+    )
+
+    fig1.update_traces(textposition='middle center')
+
+    fig1.update_layout(uniformtext_minsize=10, uniformtext_mode='hide')
+
+    return fig1
 
 def create_df_for_scen(
     data_df: pd.DataFrame, geodf: gpd.GeoDataFrame, scenario1: str, scenario2: str
@@ -368,15 +445,29 @@ def create_fig_1(geodf: gpd.GeoDataFrame):
         data=go.Scattergeo(
             lon=geodf.geometry.centroid.x,
             lat=geodf.geometry.centroid.y,
-            text=geodf["VAL_DIFF_SIGN"].astype(str) + "<br>" + geodf["BPART_SUFFIX"],
-            textfont_size=8,
-            # text=geodf["VAL_DIFF_SIGN"],
+            text=geodf["VAL_DIFF_SIGN"].astype(str) + "%" + "<br>" + geodf["BPART_SUFFIX"],
+            textfont_size=10,
             mode="text",
             showlegend=False,
             customdata=hoverdf,
             hovertemplate=my_hovertemplate,
         )
     )
+
+    fig1.update_traces(textposition='middle center')
+
+    fig1.update_layout(uniformtext_minsize=10, uniformtext_mode='hide')
+
+    # fig1.add_trace(go.Scatter(x=[-119.81560842293953], y=[36.075305511380044], mode='markers', marker=dict(size=10, color='red'), name='Special Dot'))
+
+    # for i, row in geodf.iterrows():
+    #     x = row.geometry.centroid.x
+    #     y = row.geometry.centroid.y
+    #     showarrow = row["ARROW"]
+    #     text = str(row["VAL_DIFF_SIGN"]) + "<br>" + row["BPART_SUFFIX"]
+    #     fig1.add_annotation(x=x, y=y, text=text, showarrow=showarrow, arrowhead=1)
+    #     print(f"i = {i}, x = {x}, y = {y}, showarrow = {showarrow}, text = {text}")
+
     return fig1
 
 
@@ -434,6 +525,33 @@ def update_timeseries(b_part):
 
     return fig
 
+def update_bar_annual(b_part, slider_yr_range):
+    startyr = slider_yr_range[0]
+    endyr = slider_yr_range[1]
+    # print(wytchecklist)
+    df1 = qd.df_dv.loc[
+        # qd.df_dv["WYT_SAC_"].isin(qd.convert_wyt_nums(wytchecklist))
+        (qd.df_dv["iwy"] >= startyr)
+        & (qd.df_dv["iwy"] <= endyr)
+    ]
+
+    df1 = cfs_taf(df1, qd.var_dict)
+
+    df2 = round(df1.groupby(["Scenario"]).sum() / (endyr - startyr + 1))
+    df2 = df2.reindex(qd.scen_aliases, level="Scenario")
+    fig = px.bar(
+        df2,
+        x=df2.index.get_level_values(0),
+        y=b_part,
+        color=df2.index.get_level_values(0),
+        text_auto=True,
+        color_discrete_sequence=PLOT_COLORS,
+    )
+    fig.update_layout(
+        barmode="relative",
+        plot_bgcolor="white"
+    )
+    return fig
 
 def run_test_app():
     app = Dash(__name__)
